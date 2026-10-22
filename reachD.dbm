@@ -1,0 +1,404 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+CAUTION: Do not modify this file unless you know what you are doing.
+ Unexpected results may occur if the code is changed deliberately.
+-->
+<dbmodel pgmodeler-ver="1.2.2" use-changelog="false" max-obj-count="10"
+	 gen-disabled-objs-code="false" show-sys-schemas-rects="true"
+	 last-position="0,-7" last-zoom="0.75" scene-rect="0,-10,1897.35,1086.8"
+	 default-schema="public" default-owner="postgres"
+	 layers="Default layer"
+	 active-layers="0"
+	 layer-name-colors="#000000"
+	 layer-rect-colors="#b4b4b4"
+	 show-layer-names="false" show-layer-rects="false">
+<database name="reachd" encoding="UTF8" lc-collate="es_ES.UTF-8" lc-ctype="es_ES.UTF-8" is-template="false" allow-conns="true">
+	<role name="postgres"/>
+	<tablespace name="pg_default"/>
+</database>
+
+<schema name="public" layers="0" rect-visible="true" fill-color="#e1e1e1" name-color="#000000" sql-disabled="true">
+</schema>
+
+<schema name="Personas" layers="0" alias="Personas" rect-visible="true" fill-color="#562ec3" name-color="#eff0f1">
+	<role name="postgres"/>
+	<comment> <![CDATA[Personas las cuales estan en el sistema e interactuan con este mismo]]> </comment>
+</schema>
+
+<schema name="Seguridad" layers="0" alias="Seguridad" rect-visible="true" fill-color="#55ff00" name-color="#eff0f1">
+	<role name="postgres"/>
+	<comment> <![CDATA[tablas de seguridad presentes dentro del sistema]]> </comment>
+</schema>
+
+<schema name="Finanzas" layers="0" alias="Finanzas" rect-visible="true" fill-color="#c66b31" name-color="#eff0f1">
+	<role name="postgres"/>
+</schema>
+
+<schema name="Pedidos" layers="0" alias="pedidos" rect-visible="true" fill-color="#d407a9" name-color="#eff0f1">
+	<role name="postgres"/>
+</schema>
+
+<table name="Clientes" layers="0" alias="clientes" collapse-mode="2" max-obj-count="4" z-value="0">
+	<schema name="&quot;Personas&quot;"/>
+	<role name="postgres"/>
+	<position x="60" y="60"/>
+	<column name="id_cli" not-null="true">
+		<type name="integer" length="0"/>
+	</column>
+	<column name="nombre_user" not-null="true">
+		<type name="character varying" length="250"/>
+	</column>
+	<column name="telf_user" not-null="true">
+		<type name="character varying" length="20"/>
+		<comment> <![CDATA[telefono del usuario]]> </comment>
+	</column>
+	<column name="id_user_Usuarios">
+		<type name="integer" length="0"/>
+	</column>
+	<constraint name="id_cli" type="pk-constr" table="&quot;Personas&quot;.&quot;Clientes&quot;">
+		<columns names="id_cli" ref-type="src-columns"/>
+		<comment> <![CDATA[id del cliente]]> </comment>
+	</constraint>
+	<constraint name="CLientes_uq" type="uq-constr" table="&quot;Personas&quot;.&quot;Clientes&quot;">
+		<columns names="id_user_Usuarios" ref-type="src-columns"/>
+	</constraint>
+</table>
+
+<table name="Estado de la Orden" layers="0" alias="estado de la orden" collapse-mode="2" max-obj-count="2" z-value="0">
+	<schema name="&quot;Pedidos&quot;"/>
+	<role name="postgres"/>
+	<comment> <![CDATA[Estados de la Orden de DTF.]]> </comment>
+	<position x="340" y="820"/>
+	<column name="id_esta" not-null="true">
+		<type name="integer" length="0"/>
+		<comment> <![CDATA[id del estado]]> </comment>
+	</column>
+	<column name="nom_esta" not-null="true">
+		<type name="character varying" length="100"/>
+		<comment> <![CDATA[estado de la orden, Ej: Pendiente, Editado, Diseño Negado, Listo para Imprimir, Imprimiendo, Completado, Entregado.]]> </comment>
+	</column>
+	<constraint name="id_esta" type="pk-constr" table="&quot;Pedidos&quot;.&quot;Estado de la Orden&quot;">
+		<columns names="id_esta" ref-type="src-columns"/>
+	</constraint>
+</table>
+
+<table name="Factura" layers="0" alias="factura" collapse-mode="2" max-obj-count="8" z-value="0">
+	<schema name="&quot;Finanzas&quot;"/>
+	<role name="postgres"/>
+	<position x="1100" y="640"/>
+	<column name="id_fac" not-null="true">
+		<type name="integer" length="0"/>
+		<comment> <![CDATA[id de la orden a realizar]]> </comment>
+	</column>
+	<column name="id_cli" not-null="true">
+		<type name="integer" length="0"/>
+		<comment> <![CDATA[id del cliente que solicito la impresion]]> </comment>
+	</column>
+	<column name="id_esta" not-null="true">
+		<type name="integer" length="0"/>
+	</column>
+	<column name="mont_fac" not-null="true">
+		<type name="numeric" length="0"/>
+	</column>
+	<column name="fecc_fac" not-null="true">
+		<type name="timestamp" length="0"/>
+		<comment> <![CDATA[Fecha de creacion del pedido]]> </comment>
+	</column>
+	<column name="fece_fac" not-null="true">
+		<type name="timestamp" length="0"/>
+		<comment> <![CDATA[fecha de entrega estimada para la impresion]]> </comment>
+	</column>
+	<column name="id_oper_Operadores">
+		<type name="integer" length="0"/>
+	</column>
+	<constraint name="id_fac" type="pk-constr" table="&quot;Finanzas&quot;.&quot;Factura&quot;">
+		<columns names="id_fac" ref-type="src-columns"/>
+	</constraint>
+</table>
+
+<table name="Ordenes" layers="0" alias="ordenes" collapse-mode="2" max-obj-count="8" z-value="0">
+	<schema name="&quot;Pedidos&quot;"/>
+	<role name="postgres"/>
+	<comment> <![CDATA[Informacion detallada de cada impresion]]> </comment>
+	<position x="40" y="660"/>
+	<column name="id_order" not-null="true">
+		<type name="integer" length="0"/>
+		<comment> <![CDATA[id de la orden general]]> </comment>
+	</column>
+	<column name="id_fac" not-null="true">
+		<type name="integer" length="0"/>
+		<comment> <![CDATA[id de la factura final]]> </comment>
+	</column>
+	<column name="id_tarif" not-null="true">
+		<type name="integer" length="0"/>
+		<comment> <![CDATA[id de la tarifa]]> </comment>
+	</column>
+	<column name="larcm_order" not-null="true">
+		<type name="numeric" length="0"/>
+		<comment> <![CDATA[Largo en cm de la imagen]]> </comment>
+	</column>
+	<column name="ancm_order" not-null="true">
+		<type name="numeric" length="0"/>
+		<comment> <![CDATA[ancho en cm de la imgen]]> </comment>
+	</column>
+	<column name="can_order" not-null="true">
+		<type name="integer" length="0"/>
+		<comment> <![CDATA[cantidad de copias a realizar del dicha imagen]]> </comment>
+	</column>
+	<column name="sub_order" not-null="true">
+		<type name="numeric" length="0"/>
+		<comment> <![CDATA[sub total del monto de la impresion]]> </comment>
+	</column>
+	<constraint name="id_order" type="pk-constr" table="&quot;Pedidos&quot;.&quot;Ordenes&quot;">
+		<columns names="id_order" ref-type="src-columns"/>
+	</constraint>
+</table>
+
+<table name="Tarifas" layers="0" alias="tarifas" collapse-mode="2" max-obj-count="3" z-value="0">
+	<schema name="&quot;Finanzas&quot;"/>
+	<role name="postgres"/>
+	<comment> <![CDATA[Tarifas en favor al tamaño de la impresion]]> </comment>
+	<position x="1060" y="460"/>
+	<column name="id_tarif" not-null="true">
+		<type name="integer" length="0"/>
+	</column>
+	<column name="tam_tarif" not-null="true">
+		<type name="character varying" length="250"/>
+		<comment> <![CDATA[tamaño del pliego]]> </comment>
+	</column>
+	<column name="pre_tarif" not-null="true">
+		<type name="numeric" length="0"/>
+		<comment> <![CDATA[precio de la impresion]]> </comment>
+	</column>
+	<constraint name="id_tarif" type="pk-constr" table="&quot;Finanzas&quot;.&quot;Tarifas&quot;">
+		<columns names="id_tarif" ref-type="src-columns"/>
+	</constraint>
+</table>
+
+<table name="Operadores" layers="0" collapse-mode="2" max-obj-count="4" z-value="0">
+	<schema name="&quot;Personas&quot;"/>
+	<role name="postgres"/>
+	<comment> <![CDATA[Empleados de la empresa]]> </comment>
+	<position x="40" y="360"/>
+	<column name="id_oper" not-null="true">
+		<type name="integer" length="0"/>
+		<comment> <![CDATA[id del operador]]> </comment>
+	</column>
+	<column name="nom_oper" not-null="true">
+		<type name="character varying" length="250"/>
+		<comment> <![CDATA[nombre del operador]]> </comment>
+	</column>
+	<column name="ced_oper" not-null="true">
+		<type name="character varying" length="50"/>
+		<comment> <![CDATA[cedula del operador]]> </comment>
+	</column>
+	<column name="id_user_Usuarios">
+		<type name="integer" length="0"/>
+	</column>
+	<constraint name="id_oper" type="pk-constr" table="&quot;Personas&quot;.&quot;Operadores&quot;">
+		<columns names="id_oper" ref-type="src-columns"/>
+	</constraint>
+	<constraint name="Operadores_uq" type="uq-constr" table="&quot;Personas&quot;.&quot;Operadores&quot;">
+		<columns names="id_user_Usuarios" ref-type="src-columns"/>
+	</constraint>
+</table>
+
+<table name="Usuarios" layers="0" alias="usuarios" collapse-mode="2" max-obj-count="4" z-value="0">
+	<schema name="&quot;Personas&quot;"/>
+	<role name="postgres"/>
+	<comment> <![CDATA[tabla de usuarios ejemplo: Clientes y Operadores]]> </comment>
+	<position x="480" y="80"/>
+	<column name="id_user" not-null="true">
+		<type name="integer" length="0"/>
+		<comment> <![CDATA[identificador de cada usuario de la tabla]]> </comment>
+	</column>
+	<column name="correo_user" not-null="true">
+		<type name="character varying" length="250"/>
+		<comment> <![CDATA[correo del usuario ejemplo: carloshernadez@gmail.com]]> </comment>
+	</column>
+	<column name="hash_user" not-null="true">
+		<type name="character varying" length="0"/>
+		<comment> <![CDATA[contraseña en HASH del usuario]]> </comment>
+	</column>
+	<column name="id_rol" not-null="true">
+		<type name="integer" length="0"/>
+	</column>
+	<constraint name="id_user" type="pk-constr" table="&quot;Personas&quot;.&quot;Usuarios&quot;">
+		<columns names="id_user" ref-type="src-columns"/>
+	</constraint>
+	<constraint name="correo_user" type="uq-constr" table="&quot;Personas&quot;.&quot;Usuarios&quot;">
+		<columns names="correo_user" ref-type="src-columns"/>
+	</constraint>
+</table>
+
+<table name="Roles" layers="0" alias="roles" collapse-mode="2" max-obj-count="2" z-value="0">
+	<schema name="&quot;Seguridad&quot;"/>
+	<role name="postgres"/>
+	<comment> <![CDATA[roles de usuario para determinar si es cliente, operador o admin.]]> </comment>
+	<position x="1040" y="40"/>
+	<column name="id_rol" not-null="true">
+		<type name="integer" length="0"/>
+		<comment> <![CDATA[identificador del rol]]> </comment>
+	</column>
+	<column name="nom_rol" not-null="true">
+		<type name="character varying" length="150"/>
+		<comment> <![CDATA[nombre del rol ejemplo: operador, cliente, administrador.]]> </comment>
+	</column>
+	<constraint name="id_rol" type="pk-constr" table="&quot;Seguridad&quot;.&quot;Roles&quot;">
+		<columns names="id_rol" ref-type="src-columns"/>
+	</constraint>
+</table>
+
+<table name="Auditoria" layers="0" collapse-mode="2" max-obj-count="9" z-value="0">
+	<schema name="public"/>
+	<role name="postgres"/>
+	<comment> <![CDATA[registro del historial de acciones]]> </comment>
+	<position x="1440" y="160"/>
+	<column name="id_aud" not-null="true">
+		<type name="integer" length="0"/>
+	</column>
+	<column name="id_user" not-null="true">
+		<type name="integer" length="0"/>
+	</column>
+	<column name="action_aud" not-null="true">
+		<type name="character varying" length="100"/>
+		<comment> <![CDATA[accion que realizo el usuario en ciestion]]> </comment>
+	</column>
+	<column name="table_aud" not-null="true">
+		<type name="character varying" length="150"/>
+		<comment> <![CDATA[tabla la cuial fuese alterada]]> </comment>
+	</column>
+	<column name="regid_aud" not-null="true">
+		<type name="integer" length="0"/>
+		<comment> <![CDATA[Identificador de la facturau orden alterada]]> </comment>
+	</column>
+	<column name="prev_aud">
+		<type name="varchar" length="400"/>
+		<comment> <![CDATA[datos previos de la tabla]]> </comment>
+	</column>
+	<column name="new_aud">
+		<type name="varchar" length="400"/>
+		<comment> <![CDATA[datos nuevos de la tabla posterior a la modificacion]]> </comment>
+	</column>
+	<column name="fec_aud" not-null="true">
+		<type name="timestamp" length="0"/>
+		<comment> <![CDATA[fecha (y hora) de la accion]]> </comment>
+	</column>
+	<constraint name="id_aud" type="pk-constr" table="public.&quot;Auditoria&quot;">
+		<columns names="id_aud" ref-type="src-columns"/>
+	</constraint>
+</table>
+
+<constraint name="Usuarios_fk" type="fk-constr" comparison-type="MATCH FULL"
+	 upd-action="CASCADE" del-action="SET NULL" ref-table="&quot;Personas&quot;.&quot;Usuarios&quot;" table="&quot;Personas&quot;.&quot;Clientes&quot;">
+	<columns names="id_user_Usuarios" ref-type="src-columns"/>
+	<columns names="id_user" ref-type="dst-columns"/>
+</constraint>
+
+<constraint name="Operadores_fk" type="fk-constr" comparison-type="MATCH FULL"
+	 upd-action="CASCADE" del-action="SET NULL" ref-table="&quot;Personas&quot;.&quot;Operadores&quot;" table="&quot;Finanzas&quot;.&quot;Factura&quot;">
+	<columns names="id_oper_Operadores" ref-type="src-columns"/>
+	<columns names="id_oper" ref-type="dst-columns"/>
+</constraint>
+
+<constraint name="id_cli" type="fk-constr" comparison-type="MATCH SIMPLE"
+	 upd-action="NO ACTION" del-action="NO ACTION" ref-table="&quot;Personas&quot;.&quot;Clientes&quot;" table="&quot;Finanzas&quot;.&quot;Factura&quot;">
+	<columns names="id_cli" ref-type="src-columns"/>
+	<columns names="id_cli" ref-type="dst-columns"/>
+</constraint>
+
+<constraint name="id_esta" type="fk-constr" comparison-type="MATCH SIMPLE"
+	 upd-action="NO ACTION" del-action="NO ACTION" ref-table="&quot;Pedidos&quot;.&quot;Estado de la Orden&quot;" table="&quot;Finanzas&quot;.&quot;Factura&quot;">
+	<columns names="id_esta" ref-type="src-columns"/>
+	<columns names="id_esta" ref-type="dst-columns"/>
+</constraint>
+
+<constraint name="id_fac" type="fk-constr" comparison-type="MATCH FULL"
+	 upd-action="CASCADE" del-action="RESTRICT" ref-table="&quot;Finanzas&quot;.&quot;Factura&quot;" table="&quot;Pedidos&quot;.&quot;Ordenes&quot;">
+	<columns names="id_fac" ref-type="src-columns"/>
+	<columns names="id_fac" ref-type="dst-columns"/>
+</constraint>
+
+<constraint name="id_tarif" type="fk-constr" comparison-type="MATCH FULL"
+	 upd-action="CASCADE" del-action="RESTRICT" ref-table="&quot;Finanzas&quot;.&quot;Tarifas&quot;" table="&quot;Pedidos&quot;.&quot;Ordenes&quot;">
+	<columns names="id_tarif" ref-type="src-columns"/>
+	<columns names="id_tarif" ref-type="dst-columns"/>
+</constraint>
+
+<constraint name="Usuarios_fk" type="fk-constr" comparison-type="MATCH FULL"
+	 upd-action="CASCADE" del-action="SET NULL" ref-table="&quot;Personas&quot;.&quot;Usuarios&quot;" table="&quot;Personas&quot;.&quot;Operadores&quot;">
+	<columns names="id_user_Usuarios" ref-type="src-columns"/>
+	<columns names="id_user" ref-type="dst-columns"/>
+</constraint>
+
+<constraint name="id_rol" type="fk-constr" comparison-type="MATCH SIMPLE"
+	 upd-action="NO ACTION" del-action="NO ACTION" ref-table="&quot;Seguridad&quot;.&quot;Roles&quot;" table="&quot;Personas&quot;.&quot;Usuarios&quot;">
+	<columns names="id_rol" ref-type="src-columns"/>
+	<columns names="id_rol" ref-type="dst-columns"/>
+</constraint>
+
+<constraint name="id_user" type="fk-constr" comparison-type="MATCH FULL"
+	 upd-action="CASCADE" del-action="RESTRICT" ref-table="&quot;Personas&quot;.&quot;Usuarios&quot;" table="public.&quot;Auditoria&quot;">
+	<columns names="id_user" ref-type="src-columns"/>
+	<columns names="id_user" ref-type="dst-columns"/>
+</constraint>
+
+<relationship name="&quot;rel_CLientes_Usuarios&quot;" type="relfk" layers="0"
+	 custom-color="#3f620b"
+	 src-table="&quot;Personas&quot;.&quot;Clientes&quot;"
+	 dst-table="&quot;Personas&quot;.&quot;Usuarios&quot;" reference-fk="Usuarios_fk"
+	 src-required="false" dst-required="false"/>
+
+<relationship name="&quot;rel_Factura_Operadores&quot;" type="relfk" layers="0"
+	 custom-color="#3be92c"
+	 src-table="&quot;Finanzas&quot;.&quot;Factura&quot;"
+	 dst-table="&quot;Personas&quot;.&quot;Operadores&quot;" reference-fk="Operadores_fk"
+	 src-required="false" dst-required="false"/>
+
+<relationship name="&quot;rel_Factura_CLientes&quot;" type="relfk" layers="0"
+	 custom-color="#a42bbe"
+	 src-table="&quot;Finanzas&quot;.&quot;Factura&quot;"
+	 dst-table="&quot;Personas&quot;.&quot;Clientes&quot;" reference-fk="id_cli"
+	 src-required="false" dst-required="true"/>
+
+<relationship name="&quot;rel_Factura_Estado de la Orden&quot;" type="relfk" layers="0"
+	 custom-color="#43fab0"
+	 src-table="&quot;Finanzas&quot;.&quot;Factura&quot;"
+	 dst-table="&quot;Pedidos&quot;.&quot;Estado de la Orden&quot;" reference-fk="id_esta"
+	 src-required="false" dst-required="true"/>
+
+<relationship name="&quot;rel_Ordenes_Factura&quot;" type="relfk" layers="0"
+	 custom-color="#396fff"
+	 src-table="&quot;Pedidos&quot;.&quot;Ordenes&quot;"
+	 dst-table="&quot;Finanzas&quot;.&quot;Factura&quot;" reference-fk="id_fac"
+	 src-required="false" dst-required="true"/>
+
+<relationship name="&quot;rel_Ordenes_Tarifas&quot;" type="relfk" layers="0"
+	 custom-color="#bcecd6"
+	 src-table="&quot;Pedidos&quot;.&quot;Ordenes&quot;"
+	 dst-table="&quot;Finanzas&quot;.&quot;Tarifas&quot;" reference-fk="id_tarif"
+	 src-required="false" dst-required="true"/>
+
+<relationship name="&quot;rel_Operadores_Usuarios&quot;" type="relfk" layers="0"
+	 custom-color="#07a2f2"
+	 src-table="&quot;Personas&quot;.&quot;Operadores&quot;"
+	 dst-table="&quot;Personas&quot;.&quot;Usuarios&quot;" reference-fk="Usuarios_fk"
+	 src-required="false" dst-required="false"/>
+
+<relationship name="&quot;rel_Usuarios_Roles&quot;" type="relfk" layers="0"
+	 custom-color="#0fea07"
+	 src-table="&quot;Personas&quot;.&quot;Usuarios&quot;"
+	 dst-table="&quot;Seguridad&quot;.&quot;Roles&quot;" reference-fk="id_rol"
+	 src-required="false" dst-required="true"/>
+
+<relationship name="rel_Auditoria_Usuarios" type="relfk" layers="0"
+	 custom-color="#492b11"
+	 src-table="public.&quot;Auditoria&quot;"
+	 dst-table="&quot;Personas&quot;.&quot;Usuarios&quot;" reference-fk="id_user"
+	 src-required="false" dst-required="true">
+	<label ref-type="name-label">
+		<position x="0" y="0"/>
+	</label>
+</relationship>
+
+</dbmodel>

@@ -1,0 +1,52 @@
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from app.core.database import engine
+from app.api import operadores
+from app.api import facturas, usuarios, tarifas
+from app.api.usuarios import router as usuarios_router
+from app.api import usuarios, tarifas, clientes
+from app.api import usuarios, tarifas, clientes, pedidos
+from app.api import auditoria
+from app.api import finanzas
+
+app = FastAPI(
+    title="API ReDTF",
+    description="Backend para el sistema de gestión ReDTF",
+    version="1.0.0"
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"], 
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+app.include_router(usuarios_router, prefix="/api/usuarios", tags=["Usuarios"])
+
+@app.on_event("startup")
+def startup_event():
+    try:
+        with engine.connect() as connection:
+            print("✅ Conexión a PostgreSQL (DTF_systema) establecida con éxito.")
+    except Exception as e:
+        print(f"❌ Error al conectar con la base de datos: {e}")
+
+@app.get("/")
+def read_root():
+    return {"mensaje": "API ReDTF funcionando correctamente 🚀"}
+
+app.include_router(operadores.router, prefix="/api/operadores", tags=["Operadores"])
+
+app.include_router(tarifas.router, prefix="/api/tarifas", tags=["Tarifas"])
+
+app.include_router(clientes.router, prefix="/api/clientes", tags=["Clientes"])
+
+app.include_router(pedidos.router, prefix="/api/pedidos", tags=["Pedidos"])
+
+app.include_router(facturas.router, prefix="/api/facturas", tags=["Facturas"])
+
+app.include_router(auditoria.router, prefix="/api/auditoria", tags=["Auditoria"])
+
+app.include_router(finanzas.router, prefix="/api")
