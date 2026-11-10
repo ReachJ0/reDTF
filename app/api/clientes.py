@@ -25,3 +25,11 @@ def listar_clientes(
     usuario_actual = Depends(obtener_usuario_actual)
 ):
     return obtener_clientes(db=db, skip=skip, limit=limit)
+
+@router.get("/{id_cli}", response_model=ClienteResponse, tags=["Clientes"])
+def listar_cliente_individual(
+    id_cli: int,
+    db: Session = Depends(get_db),
+    usuario_actual = Depends(obtener_usuario_actual)
+):
+    return crud_clientes.obtener_cliente_por_id(db=db, id_cli=id_cli)

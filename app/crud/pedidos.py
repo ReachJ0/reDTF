@@ -1,6 +1,8 @@
 from sqlalchemy.orm import Session
 from app.models.pedidos import Orden
 from app.schemas.pedidos import OrdenCreate
+from fastapi import HTTPException
+
 
 def crear_orden(db: Session, orden: OrdenCreate):
     nueva_orden = Orden(**orden.model_dump())
@@ -24,3 +26,9 @@ def crear_estado(db: Session, estado: EstadoOrdenCreate):
 
 def obtener_estados(db: Session, skip: int = 0, limit: int = 100):
     return db.query(EstadoOrden).offset(skip).limit(limit).all()
+
+def obtener_pedido_por_id(db: Session, id_order: int):
+    db_pedido = db.query(Orden).filter(Orden.id_order == id_order).first()
+    if not db_pedido:
+        raise HTTPException(status_code=404, detail="Orden de pedido no encontrada")
+    return db_pedido

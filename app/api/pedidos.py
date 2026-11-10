@@ -44,3 +44,11 @@ def listar_estados(
     usuario_actual = Depends(obtener_usuario_actual)
 ):
     return obtener_estados(db=db, skip=skip, limit=limit)
+
+@router.get("/{id_order}", response_model=OrdenResponse, tags=["Pedidos"])
+def listar_pedido_individual(
+    id_order: int,
+    db: Session = Depends(get_db),
+    usuario_actual = Depends(obtener_usuario_actual)
+):
+    return crud_pedidos.obtener_pedido_por_id(db=db, id_order=id_order)

@@ -1,13 +1,8 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.database import engine
-from app.api import operadores
-from app.api import facturas, usuarios, tarifas
+from app.api import analitica, usuarios, operadores, tarifas, clientes, pedidos, facturas, auditoria, finanzas
 from app.api.usuarios import router as usuarios_router
-from app.api import usuarios, tarifas, clientes
-from app.api import usuarios, tarifas, clientes, pedidos
-from app.api import auditoria
-from app.api import finanzas
 
 app = FastAPI(
     title="API ReDTF",
@@ -23,7 +18,16 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(usuarios_router, prefix="/api/usuarios", tags=["Usuarios"])
+# Rutas de la api
+app.include_router(usuarios.router, prefix="/api/usuarios", tags=["Usuarios"])
+app.include_router(operadores.router, prefix="/api/operadores", tags=["Operadores"])
+app.include_router(clientes.router, prefix="/api/clientes", tags=["Clientes"])
+app.include_router(pedidos.router, prefix="/api/pedidos", tags=["Pedidos"])
+app.include_router(tarifas.router, prefix="/api/tarifas", tags=["Tarifas"])
+app.include_router(facturas.router, prefix="/api/facturas", tags=["Facturas"])
+app.include_router(finanzas.router, prefix="/api/finanzas", tags=["Finanzas"])
+app.include_router(auditoria.router, prefix="/api/auditoria", tags=["Auditoria"])
+app.include_router(analitica.router, prefix="/api/analitica", tags=["Analitica"])
 
 @app.on_event("startup")
 def startup_event():
@@ -36,17 +40,3 @@ def startup_event():
 @app.get("/")
 def read_root():
     return {"mensaje": "API ReDTF funcionando correctamente 🚀"}
-
-app.include_router(operadores.router, prefix="/api/operadores", tags=["Operadores"])
-
-app.include_router(tarifas.router, prefix="/api/tarifas", tags=["Tarifas"])
-
-app.include_router(clientes.router, prefix="/api/clientes", tags=["Clientes"])
-
-app.include_router(pedidos.router, prefix="/api/pedidos", tags=["Pedidos"])
-
-app.include_router(facturas.router, prefix="/api/facturas", tags=["Facturas"])
-
-app.include_router(auditoria.router, prefix="/api/auditoria", tags=["Auditoria"])
-
-app.include_router(finanzas.router, prefix="/api")

@@ -1,4 +1,5 @@
-from sqlalchemy import Column, Integer, String, Numeric, DateTime, ForeignKey
+from sqlalchemy import Column, Integer, String, Numeric, DateTime, ForeignKey, Float
+from sqlalchemy.sql import func
 from app.core.database import Base
 
 class Tarifa(Base):
@@ -20,3 +21,12 @@ class Factura(Base):
     fecc_fac = Column(DateTime, nullable=False)
     fece_fac = Column(DateTime, nullable=False)
     id_oper_Operadores = Column(Integer, ForeignKey("Personas.Operadores.id_oper"))
+
+class TasaCambio(Base):
+    __tablename__ = "TasasCambio"
+    __table_args__ = {'schema': 'Finanzas'}
+
+    id_tasa = Column(Integer, primary_key=True, index=True)
+    moneda = Column(String(3), unique=True, nullable=False) 
+    valor = Column(Float, nullable=False) 
+    fecha_actualizacion = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())

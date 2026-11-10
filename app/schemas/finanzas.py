@@ -33,3 +33,10 @@ class FacturaResponse(FacturaBase):
 
     class Config:
         from_attributes = True
+
+class TarifaUpdate(BaseModel):
+    tam_tarif: Optional[str] = None
+    pre_tarif: Optional[float] = None
+
+class FacturaEstadoUpdate(BaseModel):
+    id_esta: int
