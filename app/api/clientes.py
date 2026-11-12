@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
 from app.crud import clientes as crud_clientes
@@ -33,3 +33,17 @@ def listar_cliente_individual(
     usuario_actual = Depends(obtener_usuario_actual)
 ):
     return crud_clientes.obtener_cliente_por_id(db=db, id_cli=id_cli)
+
+@router.delete("/{id_cli}", status_code=204)
+def eliminar_cliente(
+    id_cli: int,
+    db: Session = Depends(get_db),
+    usuario_actual = Depends(obtener_usuario_actual)
+):
+    """Elimina un cliente por su ID."""
+    cliente = crud_clientes.obtener_cliente_por_id(db, id_cli)
+    if not cliente:
+        raise HTTPException(status_code=404, detail="Cliente no encontrado")
+    
+    crud_clientes.eliminar_cliente(db, id_cli)
+    return None

@@ -3,9 +3,9 @@ import jwt
 from datetime import datetime, timedelta, timezone
 
 #token config
-SECRET_KEY = "clave_super_secreta_redtf" 
+SECRET_KEY = "clave_super_secreta_redtf_2026_produccion_segura_viva_el_IUT" 
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 30 #token dura 30 minutos
+ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 #token dura 24 horas
 
 def get_password_hash(password: str) -> str:
     salt = bcrypt.gensalt()

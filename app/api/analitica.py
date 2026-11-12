@@ -66,7 +66,7 @@ def predecir_ventas_futuras(db: Session = Depends(get_db)):
     model.fit(X, y)
     
     next_mes_num = len(df)
-    prediccion = model.predict([[next_mes_num]])[0]
+    prediccion = model.predict(pd.DataFrame({'mes_num': [next_mes_num]}))[0]
     
     tendencia = "Alza 📈" if model.coef_[0] > 50 else "Baja 📉" if model.coef_[0] < -50 else "Estable ➡️"
 

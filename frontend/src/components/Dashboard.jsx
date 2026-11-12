@@ -3,6 +3,7 @@ import { useState } from 'react';
 import PrediccionVentas from './PrediccionVentas';
 import { useQuery } from '@tanstack/react-query';
 import api from '../api/client';
+import TablaClientes from './TablaClientes';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell
@@ -118,6 +119,10 @@ export default function Dashboard() {
             <div className="mt-6">
                 <PrediccionVentas />
         </div>
+        {/* 🆕 Tabla de Clientes */}
+    <div className="mt-6">
+        <TablaClientes />
+    </div>
       </div>
       {mostrarFormulario && (
   <FormularioCliente
