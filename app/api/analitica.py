@@ -1,34 +1,80 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+from sqlalchemy import text
 from app.core.database import get_db
-from app.models.finanzas import Factura
 import pandas as pd
-from datetime import datetime, timedelta
+import numpy as np
+from sklearn.linear_model import LinearRegression
 
 router = APIRouter()
 
-@router.get("/resumen-ventas")
-def obtener_resumen_ventas(db: Session = Depends(get_db)):
-    # Extraer datos de la BD
-    query = db.query(Factura.fecc_fac, Factura.mont_fac).all()
+@router.get("/dashboard-general")
+def obtener_dashboard_general(db: Session = Depends(get_db)):
+    # Ventas Totales y Promedio
+    query_ventas = text('SELECT SUM(mont_fac) as total, AVG(mont_fac) as promedio FROM "Finanzas"."Factura"')
+    result_ventas = db.execute(query_ventas).fetchone()
     
-    # Convertir a DataFrame de Pandas
-    df = pd.DataFrame(query, columns=['fecha', 'monto'])
-    df['fecha'] = pd.to_datetime(df['fecha'])
-    df.set_index('fecha', inplace=True)
-    
-    # Agrupar por mes
-    ventas_mensuales = df.resample('M').sum().reset_index()
-    ventas_mensuales['fecha'] = ventas_mensuales['fecha'].dt.strftime('%Y-%m')
-    
-    # Retornar JSON listo para que el Frontend lo grafique
+    # Uso de Material Estimado (Ordenes) en metros cuadrados
+    query_material = text('''
+        SELECT SUM((larcm_order * ancm_order * can_order) / 10000.0) as metros_cuadrados 
+        FROM "Pedidos"."Ordenes"
+    ''')
+    result_material = db.execute(query_material).fetchone()
+
+    # Top 5 Clientes por gasto
+    query_top_clientes = text('''
+        SELECT c.nombre_user, SUM(f.mont_fac) as total_gastado
+        FROM "Finanzas"."Factura" f
+        JOIN "Personas"."Clientes" c ON f.id_cli = c.id_cli
+        GROUP BY c.nombre_user
+        ORDER BY total_gastado DESC
+        LIMIT 5
+    ''')
+    top_clientes = db.execute(query_top_clientes).fetchall()
+
     return {
-        "total_ventas": float(df['monto'].sum()),
-        "promedio_mensual": float(df['monto'].mean()),
-        "detalle_mensual": ventas_mensuales.to_dict(orient='records')
+        "ventas": {
+            "total": float(result_ventas.total or 0),
+            "promedio_por_factura": float(result_ventas.promedio or 0)
+        },
+        "material_estimado_consumido_m2": float(result_material.metros_cuadrados or 0),
+        "top_clientes": [
+            {"nombre": row.nombre_user, "total_gastado": float(row.total_gastado)} 
+            for row in top_clientes
+        ]
     }
 
-@router.get("/clientes-segmentados")
-def segmentar_clientes(db: Session = Depends(get_db)):
-# agrupar clientes por frecuencia y monto de compra.
-    return {"mensaje": "Lógica de clustering en desarrollo"}
+@router.get("/prediccion-ventas")
+def predecir_ventas_futuras(db: Session = Depends(get_db)):
+    query_historial = text('''
+        SELECT DATE_TRUNC('month', fecc_fac) as mes, SUM(mont_fac) as total
+        FROM "Finanzas"."Factura"
+        GROUP BY DATE_TRUNC('month', fecc_fac)
+        ORDER BY mes ASC
+    ''')
+    historial = db.execute(query_historial).fetchall()
+    
+    if len(historial) < 2:
+        raise HTTPException(status_code=404, detail="No hay suficientes datos históricos (mínimo 2 meses) para realizar una predicción.")
+
+    df = pd.DataFrame(historial, columns=['mes', 'total'])
+    df['mes_num'] = np.arange(len(df))
+    
+    X = df[['mes_num']]
+    y = df['total']
+    model = LinearRegression()
+    model.fit(X, y)
+    
+    next_mes_num = len(df)
+    prediccion = model.predict([[next_mes_num]])[0]
+    
+    tendencia = "Alza 📈" if model.coef_[0] > 50 else "Baja 📉" if model.coef_[0] < -50 else "Estable ➡️"
+
+    historial_formateado = df[['mes', 'total']].copy()
+    historial_formateado['mes'] = historial_formateado['mes'].dt.strftime('%Y-%m')
+    
+    return {
+        "prediccion_proximo_mes": round(float(prediccion), 2),
+        "tendencia_actual": tendencia,
+        "historial": historial_formateado.to_dict(orient='records')
+    }
