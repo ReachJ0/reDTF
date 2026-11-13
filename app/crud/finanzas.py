@@ -1,3 +1,4 @@
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 from app.models.finanzas import Tarifa, Factura
 from app.schemas.finanzas import TarifaCreate, FacturaCreate, TarifaUpdate, FacturaEstadoUpdate
@@ -58,3 +59,18 @@ def obtener_tarifa_por_id(db: Session, id_tarif: int):
     if not db_tarifa:
         raise HTTPException(status_code=404, detail="Tarifa no encontrada")
     return db_tarifa
+
+def cambiar_estado_factura(db: Session, id_fac: int, id_esta: int):
+    """Cambia el estado de una factura y retorna la factura actualizada."""
+    # Buscar la factura
+    factura = db.query(Factura).filter(Factura.id_fac == id_fac).first()
+    
+    if not factura:
+        return None
+    
+    # Actualizar el estado
+    factura.id_esta = id_esta
+    db.commit()
+    db.refresh(factura)
+    
+    return factura

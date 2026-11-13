@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import api from '../api/client';
 import { ShoppingCart, X, CheckCircle, AlertCircle, Calculator } from 'lucide-react';
 
@@ -8,29 +9,27 @@ export default function FormularioPedido({ onPedidoCreado, onClose }) {
     id_tarif: '',
     larcm_order: '',
     ancm_order: '',
-    can_order: 1
+    can_order: 1,
+    id_estado: 1
   });
-  const [clientes, setClientes] = useState([]);
-  const [tarifas, setTarifas] = useState([]);
   const [loading, setLoading] = useState(false);
   const [mensaje, setMensaje] = useState(null);
   const [calculo, setCalculo] = useState({ m2: 0, subtotal: 0, precioUnitario: 0 });
 
-  useEffect(() => {
-    const cargarDatos = async () => {
-      try {
-        const [clientesRes, tarifasRes] = await Promise.all([
-          api.get('/clientes/'),
-          api.get('/tarifas/')
-        ]);
-        setClientes(clientesRes.data);
-        setTarifas(tarifasRes.data);
-      } catch (error) {
-        console.error('Error al cargar datos:', error);
-      }
-    };
-    cargarDatos();
-  }, []);
+  const { data: clientes } = useQuery({
+    queryKey: ['clientes'],
+    queryFn: async () => (await api.get('/clientes/')).data,
+  });
+
+  const { data: tarifas } = useQuery({
+    queryKey: ['tarifas'],
+    queryFn: async () => (await api.get('/tarifas/')).data,
+  });
+
+  const { data: estados } = useQuery({
+    queryKey: ['estadosPedidos'],
+    queryFn: async () => (await api.get('/pedidos/estados/')).data,
+  });
 
   useEffect(() => {
     const { larcm_order, ancm_order, can_order, id_tarif } = formData;
@@ -42,7 +41,7 @@ export default function FormularioPedido({ onPedidoCreado, onClose }) {
       
       if (largo > 0 && ancho > 0 && cantidad > 0) {
         const m2 = (largo * ancho * cantidad) / 10000;
-        const tarifa = tarifas.find(t => t.id_tarif === parseInt(id_tarif));
+        const tarifa = tarifas?.find(t => t.id_tarif === parseInt(id_tarif));
         const subtotal = tarifa ? m2 * tarifa.pre_tarif : 0;
         
         setCalculo({ 
@@ -55,10 +54,7 @@ export default function FormularioPedido({ onPedidoCreado, onClose }) {
   }, [formData.larcm_order, formData.ancm_order, formData.can_order, formData.id_tarif, tarifas]);
 
   const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value
-    });
+    setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
   const handleSubmit = async (e) => {
@@ -67,32 +63,18 @@ export default function FormularioPedido({ onPedidoCreado, onClose }) {
     setMensaje(null);
 
     try {
-      const facturaRes = await api.post('/facturas/', {
-        id_cli: parseInt(formData.id_cli),
-        id_esta: 1,
-        mont_fac: parseFloat(calculo.subtotal),
-        fecc_fac: new Date().toISOString(),
-        fece_fac: new Date().toISOString()
-      });
-
-      const id_fac = facturaRes.data.id_fac;
-
       const pedidoData = {
-        id_fac: id_fac,
+        id_cli: parseInt(formData.id_cli),
         id_tarif: parseInt(formData.id_tarif),
         larcm_order: parseFloat(formData.larcm_order),
-        ancm_order: parseFloat(formData.ancm_order),  // ✅ CORREGIDO
+        ancm_order: parseFloat(formData.ancm_order),
         can_order: parseInt(formData.can_order),
-        id_esta: 1
+        id_estado: parseInt(formData.id_estado)
       };
 
       await api.post('/pedidos/', pedidoData);
       
-      setMensaje({ 
-        tipo: 'success', 
-        texto: `✅ Pedido registrado exitosamente. Total: $${calculo.subtotal}` 
-      });
-      setFormData({ id_cli: '', id_tarif: '', larcm_order: '', ancm_order: '', can_order: 1 });
+      setMensaje({ tipo: 'success', texto: `✅ Pedido registrado. Total: $${calculo.subtotal}` });
       
       if (onPedidoCreado) onPedidoCreado();
       
@@ -100,19 +82,7 @@ export default function FormularioPedido({ onPedidoCreado, onClose }) {
         if (onClose) onClose();
       }, 2000);
     } catch (error) {
-      console.error('Error completo:', error);
-      
-      let mensajeError = 'No se pudo registrar el pedido';
-      
-      if (error.response?.data) {
-        const data = error.response.data;
-        if (typeof data.detail === 'string') {
-          mensajeError = data.detail;
-        } else if (Array.isArray(data.detail)) {
-          mensajeError = data.detail.map(e => e.msg).join(', ');
-        }
-      }
-      
+      const mensajeError = error.response?.data?.detail || 'No se pudo registrar el pedido';
       setMensaje({ tipo: 'error', texto: `❌ Error: ${mensajeError}` });
     } finally {
       setLoading(false);
@@ -152,9 +122,7 @@ export default function FormularioPedido({ onPedidoCreado, onClose }) {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Cliente *
-            </label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Cliente *</label>
             <select
               name="id_cli"
               value={formData.id_cli}
@@ -163,18 +131,14 @@ export default function FormularioPedido({ onPedidoCreado, onClose }) {
               className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-white rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
             >
               <option value="">Seleccionar cliente</option>
-              {clientes.map(cliente => (
-                <option key={cliente.id_cli} value={cliente.id_cli}>
-                  {cliente.nombre_user} - {cliente.telf_user}
-                </option>
+              {clientes?.map(c => (
+                <option key={c.id_cli} value={c.id_cli}>{c.nombre_user} - {c.telf_user}</option>
               ))}
             </select>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Tipo de Impresión *
-            </label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Tipo de Impresión *</label>
             <select
               name="id_tarif"
               value={formData.id_tarif}
@@ -183,19 +147,30 @@ export default function FormularioPedido({ onPedidoCreado, onClose }) {
               className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-white rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
             >
               <option value="">Seleccionar tarifa</option>
-              {tarifas.map(tarifa => (
-                <option key={tarifa.id_tarif} value={tarifa.id_tarif}>
-                  {tarifa.tam_tarif} - ${tarifa.pre_tarif.toFixed(2)}/m²
-                </option>
+              {tarifas?.map(t => (
+                <option key={t.id_tarif} value={t.id_tarif}>{t.tam_tarif} - ${t.pre_tarif.toFixed(2)}/m²</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Estado del Pedido *</label>
+            <select
+              name="id_estado"
+              value={formData.id_estado}
+              onChange={handleChange}
+              required
+              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-white rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+            >
+              {estados?.map(e => (
+                <option key={e.id_estado} value={e.id_estado}>{e.nom_estado}</option>
               ))}
             </select>
           </div>
 
           <div className="grid grid-cols-3 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Largo (cm) *
-              </label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Largo (cm) *</label>
               <input
                 type="number"
                 name="larcm_order"
@@ -210,9 +185,7 @@ export default function FormularioPedido({ onPedidoCreado, onClose }) {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Ancho (cm) *
-              </label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Ancho (cm) *</label>
               <input
                 type="number"
                 name="ancm_order"
@@ -227,9 +200,7 @@ export default function FormularioPedido({ onPedidoCreado, onClose }) {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Cantidad *
-              </label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Cantidad *</label>
               <input
                 type="number"
                 name="can_order"
