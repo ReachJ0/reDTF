@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.core.database import engine
 from app.api import analitica, usuarios, operadores, tarifas, clientes, pedidos, facturas, auditoria, finanzas
 from app.api.usuarios import router as usuarios_router
+from app.api import ordenes
 
 app = FastAPI(
     title="API ReDTF",
@@ -28,6 +29,7 @@ app.include_router(facturas.router, prefix="/api/facturas", tags=["Facturas"])
 app.include_router(finanzas.router, prefix="/api/finanzas", tags=["Finanzas"])
 app.include_router(auditoria.router, prefix="/api/auditoria", tags=["Auditoria"])
 app.include_router(analitica.router, prefix="/api/analitica", tags=["Analitica"])
+app.include_router(ordenes.router, prefix="/api/ordenes", tags=["Órdenes"])
 
 @app.on_event("startup")
 def startup_event():

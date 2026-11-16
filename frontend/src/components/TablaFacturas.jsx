@@ -23,13 +23,13 @@ export default function TablaFacturas() {
   const [menuAbierto, setMenuAbierto] = useState(null);
 
 
-  const { data: estadosBD } = useQuery({
-    queryKey: ['estados'],
+    const { data: estadosBD } = useQuery({
+        queryKey: ['estadosFactura'],
         queryFn: async () => {
         const response = await api.get('/finanzas/estados-factura/');
-        return response.data;
-    },
-  });
+    return response.data;
+        },
+    });
 
   useEffect(() => {
     const handleClickOutside = () => setMenuAbierto(null);

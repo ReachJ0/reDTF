@@ -1,20 +1,69 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;700&display=swap');
+
 @import "tailwindcss";
 
-@custom-variant dark (&:where(.dark, .dark *));
+@layer base {
+  html { color-scheme: light; }
+  html.dark { color-scheme: dark; }
 
-body {
-  font-family: 'Inter', system-ui, sans-serif;
-  transition: background-color 0.3s ease, color 0.3s ease;
-}
+  body {
+    font-family: 'Outfit', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+    background-color: #eef1f8;
+    background-image:
+      radial-gradient(900px 480px at 8% -10%, rgba(139, 92, 246, .14), transparent 65%),
+      radial-gradient(800px 420px at 96% 4%, rgba(56, 189, 248, .12), transparent 65%),
+      radial-gradient(700px 500px at 50% 110%, rgba(232, 121, 249, .10), transparent 65%);
+    background-attachment: fixed;
+    color: #1e293b;
+    -webkit-font-smoothing: antialiased;
+  }
+  html.dark body {
+    background-color: #0a0f1e;
+    background-image:
+      radial-gradient(900px 480px at 8% -10%, rgba(139, 92, 246, .16), transparent 65%),
+      radial-gradient(800px 420px at 96% 4%, rgba(56, 189, 248, .10), transparent 65%),
+      radial-gradient(700px 500px at 50% 110%, rgba(232, 121, 249, .08), transparent 65%);
+    color: #e2e8f0;
+  }
 
-/* Scrollbar personalizado para modo oscuro */
-.dark ::-webkit-scrollbar {
-  width: 8px;
-}
-.dark ::-webkit-scrollbar-track {
-  background: #1f2937;
-}
-.dark ::-webkit-scrollbar-thumb {
-  background: #4b5563;
-  border-radius: 4px;
+  /* Grano sutil sobre el fondo, sin interceptar el puntero */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    opacity: .045;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+  html.dark body::before { opacity: .06; }
+  #root { position: relative; z-index: 1; }
+
+  ::selection { background: rgba(232, 121, 249, .35); color: inherit; }
+
+  :focus-visible { outline: 2px solid #8b5cf6; outline-offset: 2px; border-radius: 6px; }
+
+  /* Scrollbars globales en el lenguaje de la marca */
+  * { scrollbar-width: thin; scrollbar-color: #8b5cf6 rgba(148, 163, 184, .14); }
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-track { background: rgba(148, 163, 184, .08); border-radius: 8px; }
+  ::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, #8b5cf6, #6366f1);
+    border-radius: 8px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(180deg, #a78bfa, #818cf8);
+    border: 2px solid transparent;
+    background-clip: padding-box;
+  }
+  ::-webkit-scrollbar-corner { background: transparent; }
+
+  input[type='date']::-webkit-calendar-picker-indicator { cursor: pointer; opacity: .6; }
+  html.dark input[type='date']::-webkit-calendar-picker-indicator { filter: invert(1); }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+  }
 }

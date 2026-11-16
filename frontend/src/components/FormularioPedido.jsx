@@ -1,269 +1,139 @@
-import { useState, useEffect } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useState, useEffect, useMemo } from 'react';
+import { createPortal } from 'react-dom';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import api from '../api/client';
-import { ShoppingCart, X, CheckCircle, AlertCircle, Calculator } from 'lucide-react';
+import { ShoppingCart, X, Calculator, User, Tag, Ruler, Hash, CheckCircle } from 'lucide-react';
+import { cx, Btn, inputCls, labelCls, money, useToasts, Toasts } from '../design/sistema';
 
 export default function FormularioPedido({ onPedidoCreado, onClose }) {
-  const [formData, setFormData] = useState({
-    id_cli: '',
-    id_tarif: '',
-    larcm_order: '',
-    ancm_order: '',
-    can_order: 1,
-    id_estado: 1
-  });
-  const [loading, setLoading] = useState(false);
-  const [mensaje, setMensaje] = useState(null);
-  const [calculo, setCalculo] = useState({ m2: 0, subtotal: 0, precioUnitario: 0 });
+  const qc = useQueryClient();
+  const { toasts, push, cerrar } = useToasts();
+  const [form, setForm] = useState({ id_cli: '', id_tarif: '', larcm_order: '', ancm_order: '', can_order: 1, id_estado: 1 });
+  const [enviando, setEnviando] = useState(false);
 
-  const { data: clientes } = useQuery({
-    queryKey: ['clientes'],
-    queryFn: async () => (await api.get('/clientes/')).data,
-  });
-
-  const { data: tarifas } = useQuery({
-    queryKey: ['tarifas'],
-    queryFn: async () => (await api.get('/tarifas/')).data,
-  });
-
-  const { data: estados } = useQuery({
-    queryKey: ['estadosPedidos'],
-    queryFn: async () => (await api.get('/pedidos/estados/')).data,
-  });
+  const { data: clientes } = useQuery({ queryKey: ['clientes'], queryFn: async () => (await api.get('/clientes/')).data });
+  const { data: tarifas } = useQuery({ queryKey: ['tarifas'], queryFn: async () => (await api.get('/tarifas/')).data });
+  const { data: estados } = useQuery({ queryKey: ['estadosProd'], queryFn: async () => (await api.get('/ordenes/estados-produccion/')).data });
 
   useEffect(() => {
-    const { larcm_order, ancm_order, can_order, id_tarif } = formData;
-    
-    if (larcm_order && ancm_order && can_order && id_tarif) {
-      const largo = parseFloat(larcm_order);
-      const ancho = parseFloat(ancm_order);
-      const cantidad = parseInt(can_order);
-      
-      if (largo > 0 && ancho > 0 && cantidad > 0) {
-        const m2 = (largo * ancho * cantidad) / 10000;
-        const tarifa = tarifas?.find(t => t.id_tarif === parseInt(id_tarif));
-        const subtotal = tarifa ? m2 * tarifa.pre_tarif : 0;
-        
-        setCalculo({ 
-          m2: m2.toFixed(4), 
-          subtotal: subtotal.toFixed(2),
-          precioUnitario: tarifa?.pre_tarif || 0
-        });
-      }
+    if (estados?.length && !estados.some((e) => e.id_estado === Number(form.id_estado))) {
+      setForm((f) => ({ ...f, id_estado: estados[0].id_estado }));
     }
-  }, [formData.larcm_order, formData.ancm_order, formData.can_order, formData.id_tarif, tarifas]);
+  }, [estados]);
 
-  const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-  };
+  const tarifa = useMemo(() => (tarifas ?? []).find((t) => t.id_tarif === parseInt(form.id_tarif)), [tarifas, form.id_tarif]);
+  const calc = useMemo(() => {
+    const l = parseFloat(form.larcm_order), a = parseFloat(form.ancm_order), c = parseInt(form.can_order);
+    if (!(l > 0 && a > 0 && c > 0)) return null;
+    const m2 = (l * a * c) / 10000;
+    return { m2, subtotal: tarifa ? m2 * Number(tarifa.pre_tarif) : 0 };
+  }, [form.larcm_order, form.ancm_order, form.can_order, tarifa]);
 
-  const handleSubmit = async (e) => {
+  const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
+
+  const enviar = async (e) => {
     e.preventDefault();
-    setLoading(true);
-    setMensaje(null);
-
+    if (!form.id_cli || !form.id_tarif) return push('error', 'Selecciona cliente y tipo de impresión.');
+    if (!calc) return push('error', 'Las dimensiones y cantidad deben ser mayores a cero.');
+    setEnviando(true);
     try {
-      const pedidoData = {
-        id_cli: parseInt(formData.id_cli),
-        id_tarif: parseInt(formData.id_tarif),
-        larcm_order: parseFloat(formData.larcm_order),
-        ancm_order: parseFloat(formData.ancm_order),
-        can_order: parseInt(formData.can_order),
-        id_estado: parseInt(formData.id_estado)
-      };
-
-      await api.post('/pedidos/', pedidoData);
-      
-      setMensaje({ tipo: 'success', texto: `✅ Pedido registrado. Total: $${calculo.subtotal}` });
-      
-      if (onPedidoCreado) onPedidoCreado();
-      
-      setTimeout(() => {
-        if (onClose) onClose();
-      }, 2000);
-    } catch (error) {
-      const mensajeError = error.response?.data?.detail || 'No se pudo registrar el pedido';
-      setMensaje({ tipo: 'error', texto: `❌ Error: ${mensajeError}` });
-    } finally {
-      setLoading(false);
-    }
+      await api.post('/pedidos/', {
+        id_cli: parseInt(form.id_cli),
+        id_tarif: parseInt(form.id_tarif),
+        larcm_order: parseFloat(form.larcm_order),
+        ancm_order: parseFloat(form.ancm_order),
+        can_order: parseInt(form.can_order),
+        id_estado: parseInt(form.id_estado),
+      });
+      qc.invalidateQueries(['ordenes']);
+      qc.invalidateQueries(['dashboardStats']);
+      push('success', `Orden registrada por ${money(calc.subtotal)} · factura generada automáticamente.`);
+      onPedidoCreado?.();
+      setTimeout(onClose, 800);
+    } catch (err) {
+      push('error', `No se pudo registrar: ${err.response?.data?.detail || err.message}`);
+    } finally { setEnviando(false); }
   };
 
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-2xl w-full p-6 relative border border-gray-200 dark:border-gray-700 max-h-[90vh] overflow-y-auto">
-        <button
-          onClick={onClose}
-          className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition"
-        >
-          <X className="w-5 h-5" />
-        </button>
-
-        <div className="flex items-center gap-3 mb-6">
-          <div className="bg-blue-500 p-3 rounded-lg">
-            <ShoppingCart className="w-6 h-6 text-white" />
+  return createPortal(
+    <div className="fixed inset-0 z-[9995] flex items-center justify-center p-4">
+      <div className="rdtf-scrim absolute inset-0 bg-slate-950/70 backdrop-blur-sm" onClick={onClose} />
+      <div className="rdtf-menu rdtf-scroll relative w-full max-w-lg max-h-[92vh] overflow-y-auto rounded-2xl border border-violet-400/30 bg-white dark:bg-gray-900 shadow-2xl">
+        <div className="sticky top-0 z-10 bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white p-5 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <span className="p-2.5 rounded-xl bg-white/15"><ShoppingCart className="w-5 h-5" /></span>
+            <div>
+              <h2 className="text-lg font-extrabold">Nueva Orden</h2>
+              <p className="text-xs opacity-85">Producción + factura en un solo paso</p>
+            </div>
           </div>
-          <div>
-            <h2 className="text-xl font-bold text-gray-800 dark:text-white">Nuevo Pedido</h2>
-            <p className="text-sm text-gray-500 dark:text-gray-400">Completa los datos del pedido</p>
-          </div>
+          <button type="button" onClick={onClose} aria-label="Cerrar" className="p-2 rounded-lg hover:bg-white/15 transition"><X className="w-5 h-5" /></button>
         </div>
 
-        {mensaje && (
-          <div className={`mb-4 p-3 rounded-lg flex items-center gap-2 ${
-            mensaje.tipo === 'success' 
-              ? 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-800' 
-              : 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-800'
-          }`}>
-            {mensaje.tipo === 'success' ? <CheckCircle className="w-5 h-5" /> : <AlertCircle className="w-5 h-5" />}
-            <span className="text-sm">{mensaje.texto}</span>
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={enviar} className="p-5 space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Cliente *</label>
-            <select
-              name="id_cli"
-              value={formData.id_cli}
-              onChange={handleChange}
-              required
-              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-white rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-            >
-              <option value="">Seleccionar cliente</option>
-              {clientes?.map(c => (
-                <option key={c.id_cli} value={c.id_cli}>{c.nombre_user} - {c.telf_user}</option>
-              ))}
+            <label className={labelCls}><User className="inline w-3.5 h-3.5 mr-1" />Cliente *</label>
+            <select value={form.id_cli} onChange={set('id_cli')} required className={cx(inputCls, 'w-full')}>
+              <option value="">Seleccionar cliente…</option>
+              {(clientes ?? []).map((c) => <option key={c.id_cli} value={c.id_cli}>{c.nombre_user}{c.telf_user ? ` · ${c.telf_user}` : ''}</option>)}
             </select>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Tipo de Impresión *</label>
-            <select
-              name="id_tarif"
-              value={formData.id_tarif}
-              onChange={handleChange}
-              required
-              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-white rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-            >
-              <option value="">Seleccionar tarifa</option>
-              {tarifas?.map(t => (
-                <option key={t.id_tarif} value={t.id_tarif}>{t.tam_tarif} - ${t.pre_tarif.toFixed(2)}/m²</option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Estado del Pedido *</label>
-            <select
-              name="id_estado"
-              value={formData.id_estado}
-              onChange={handleChange}
-              required
-              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-white rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-            >
-              {estados?.map(e => (
-                <option key={e.id_estado} value={e.id_estado}>{e.nom_estado}</option>
-              ))}
-            </select>
-          </div>
-
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Largo (cm) *</label>
-              <input
-                type="number"
-                name="larcm_order"
-                value={formData.larcm_order}
-                onChange={handleChange}
-                required
-                min="0.1"
-                step="0.1"
-                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-white rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-                placeholder="Ej: 30"
-              />
+              <label className={labelCls}><Tag className="inline w-3.5 h-3.5 mr-1" />Tipo de impresión *</label>
+              <select value={form.id_tarif} onChange={set('id_tarif')} required className={cx(inputCls, 'w-full')}>
+                <option value="">Seleccionar tarifa…</option>
+                {(tarifas ?? []).map((t) => <option key={t.id_tarif} value={t.id_tarif}>{t.tam_tarif} · {money(t.pre_tarif)}/m²</option>)}
+              </select>
             </div>
-
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Ancho (cm) *</label>
-              <input
-                type="number"
-                name="ancm_order"
-                value={formData.ancm_order}
-                onChange={handleChange}
-                required
-                min="0.1"
-                step="0.1"
-                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-white rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-                placeholder="Ej: 40"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Cantidad *</label>
-              <input
-                type="number"
-                name="can_order"
-                value={formData.can_order}
-                onChange={handleChange}
-                required
-                min="1"
-                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-white rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-              />
+              <label className={labelCls}>Estado inicial de producción</label>
+              <select value={form.id_estado} onChange={set('id_estado')} className={cx(inputCls, 'w-full')}>
+                {(estados ?? []).map((e) => <option key={e.id_estado} value={e.id_estado}>{e.nom_estado}</option>)}
+              </select>
             </div>
           </div>
 
-          {calculo.m2 > 0 && (
-            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <Calculator className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-                <h3 className="font-semibold text-blue-800 dark:text-blue-300">Cálculo Automático</h3>
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <label className={labelCls}><Ruler className="inline w-3.5 h-3.5 mr-1" />Largo (cm)</label>
+              <input type="number" min="0.1" step="0.1" value={form.larcm_order} onChange={set('larcm_order')} required placeholder="30" className={cx(inputCls, 'w-full rdtf-num')} />
+            </div>
+            <div>
+              <label className={labelCls}>Ancho (cm)</label>
+              <input type="number" min="0.1" step="0.1" value={form.ancm_order} onChange={set('ancm_order')} required placeholder="40" className={cx(inputCls, 'w-full rdtf-num')} />
+            </div>
+            <div>
+              <label className={labelCls}><Hash className="inline w-3.5 h-3.5 mr-1" />Cantidad</label>
+              <input type="number" min="1" step="1" value={form.can_order} onChange={set('can_order')} required className={cx(inputCls, 'w-full rdtf-num')} />
+            </div>
+          </div>
+
+          <div className={cx('rounded-xl border p-4 transition-all', calc ? 'border-fuchsia-400/40 bg-gradient-to-r from-violet-500/10 via-fuchsia-500/10 to-sky-500/10' : 'border-slate-200 dark:border-gray-700 bg-slate-50/60 dark:bg-gray-800/60')}>
+            <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-widest text-fuchsia-600 dark:text-fuchsia-300 mb-3">
+              <Calculator className="w-4 h-4" /> Cálculo automático
+            </p>
+            {calc ? (
+              <div className="grid grid-cols-3 gap-3 text-center">
+                <div><p className="rdtf-num text-xl font-extrabold text-sky-600 dark:text-sky-300">{calc.m2.toFixed(4)}</p><p className="text-[11px] text-slate-400">m² totales</p></div>
+                <div><p className="rdtf-num text-xl font-extrabold text-violet-600 dark:text-violet-300">{tarifa ? money(tarifa.pre_tarif) : '—'}</p><p className="text-[11px] text-slate-400">precio / m²</p></div>
+                <div><p className="rdtf-num text-xl font-extrabold text-emerald-600 dark:text-emerald-300">{money(calc.subtotal)}</p><p className="text-[11px] text-slate-400">subtotal</p></div>
               </div>
-              <div className="grid grid-cols-3 gap-4 text-sm">
-                <div>
-                  <p className="text-gray-600 dark:text-gray-400">Metros cuadrados</p>
-                  <p className="text-lg font-bold text-blue-600 dark:text-blue-400">{calculo.m2} m²</p>
-                </div>
-                <div>
-                  <p className="text-gray-600 dark:text-gray-400">Precio unitario</p>
-                  <p className="text-lg font-bold text-blue-600 dark:text-blue-400">${calculo.precioUnitario.toFixed(2)}/m²</p>
-                </div>
-                <div>
-                  <p className="text-gray-600 dark:text-gray-400">Subtotal</p>
-                  <p className="text-lg font-bold text-green-600 dark:text-green-400">${calculo.subtotal}</p>
-                </div>
-              </div>
-            </div>
-          )}
+            ) : (
+              <p className="text-sm text-slate-400">Completa tarifa, dimensiones y cantidad para ver el subtotal en vivo.</p>
+            )}
+          </div>
 
-          <div className="flex gap-3 pt-4">
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition"
-            >
-              Cancelar
-            </button>
-            <button
-              type="submit"
-              disabled={loading}
-              className="flex-1 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:bg-gray-400 transition flex items-center justify-center gap-2"
-            >
-              {loading ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                  Registrando...
-                </>
-              ) : (
-                <>
-                  <ShoppingCart className="w-4 h-4" />
-                  Registrar Pedido
-                </>
-              )}
-            </button>
+          <div className="flex gap-2.5 pt-1">
+            <Btn variant="ghost" className="flex-1" onClick={onClose}>Cancelar</Btn>
+            <Btn type="submit" disabled={enviando || !calc} className="flex-1">
+              {enviando ? <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <CheckCircle className="w-4 h-4" />}
+              Registrar orden
+            </Btn>
           </div>
         </form>
       </div>
-    </div>
-  );
+      <Toasts items={toasts} onCerrar={cerrar} />
+    </div>, document.body);
 }

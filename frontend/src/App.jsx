@@ -5,8 +5,7 @@ import { ThemeProvider } from './context/ThemeContext';
 import Sidebar from './components/Sidebar';
 import DashboardPage from './pages/DashboardPage';
 import ClientesPage from './pages/ClientesPage';
-import PedidosPage from './pages/PedidosPage';
-import FacturasPage from './pages/FacturasPage';
+import OrdenesPage from './pages/OrdenesPage';
 import ConfiguracionPage from './pages/COnfiguracionPage';
 import Login from './components/login';
 import { LogOut } from 'lucide-react';
@@ -47,8 +46,7 @@ function AppContent() {
           <Routes>
             <Route path="/" element={<DashboardPage />} />
             <Route path="/clientes" element={<ClientesPage />} />
-            <Route path="/pedidos" element={<PedidosPage />} />
-            <Route path="/facturas" element={<FacturasPage />} />
+            <Route path="/ordenes" element={<OrdenesPage />} />
             <Route path="/configuracion" element={<ConfiguracionPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
