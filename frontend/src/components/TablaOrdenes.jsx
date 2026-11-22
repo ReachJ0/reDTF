@@ -4,9 +4,9 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import api from '../api/client';
 import {
   AlertTriangle, ArrowDown, ArrowUp, ArrowUpDown, Bookmark, Calendar, Check,
-  CheckCircle, ChevronDown, Clock, CreditCard, Download, Eye, FileText, Filter,
-  Hash, Inbox, Package, Phone, Printer, RefreshCw, RotateCcw, Ruler, Save,
-  Search, SlidersHorizontal, Trash2, X, XCircle
+  CheckCircle, ChevronDown, Clock, CreditCard, Download, Eye, FileSpreadsheet,
+  FileText, Filter, Hash, Inbox, Package, Phone, Printer, RefreshCw, RotateCcw,
+  Ruler, Save, Search, SlidersHorizontal, Trash2, X, XCircle
 } from 'lucide-react';
 
 /* ─────────────────────────  SISTEMA DE COLOR  ───────────────────────── */
@@ -403,7 +403,7 @@ export default function TablaOrdenes() {
     setSeleccion((s) => { const n = new Set(s); ids.forEach((i) => n.delete(i)); return n; });
     if (ids.includes(drawerId)) setDrawerId(null);
 
-    const res = await Promise.allSettled(ids.map((id) => api.delete(`/pedidos/${id}`)));
+    const res = await Promise.allSettled(ids.map((id) => api.delete(`/ordenes/${id}`)));
     const fallos = res.filter((r) => r.status === 'rejected').length;
     const ok = res.length - fallos;
     if (fallos) {
@@ -511,6 +511,35 @@ export default function TablaOrdenes() {
     URL.revokeObjectURL(a.href);
     toast('success', `${rows.length} orden(es) exportadas a CSV (compatible con Excel).`);
   };
+
+/* ── Reportes backend (Sprint B): Excel y PDF formateados ── */
+const descargarReporte = async (formato) => {
+  try {
+    const resp = await api.get(`/reportes/${formato}`, {
+      params: { tipo: 'ordenes', desde: desde || undefined, hasta: hasta || undefined },
+      responseType: 'blob',
+    });
+    const url = URL.createObjectURL(resp.data);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `reporte_ordenes_${hoyISO()}.${formato === 'excel' ? 'xlsx' : 'pdf'}`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast('success', `Reporte ${formato.toUpperCase()} generado (${desde || 'inicio'} → ${hasta || 'hoy'}).`);
+  } catch (err) {
+    let detalle = `HTTP ${err.response?.status || err.message}`;
+    try {
+      if (err.response?.data instanceof Blob) {
+        const txt = await err.response.data.text();
+        const json = JSON.parse(txt);
+        detalle = json.detail || detalle;
+      } else if (err.response?.data?.detail) {
+        detalle = err.response.data.detail;
+      }
+    } catch { /* se mantiene el código HTTP */ }
+    toast('error', `No se pudo generar el reporte: ${detalle}`, null, 8000);
+  }
+};
 
   /* ── Vistas guardadas ── */
   const guardarVista = () => {
@@ -642,9 +671,21 @@ export default function TablaOrdenes() {
               )}
             </div>
 
+            {/* ✅ SPRINT B: Reportes backend formateados */}
+            <button type="button" onClick={() => descargarReporte('excel')}
+              title="Excel formateado con los filtros actuales (membrete, estilos, totales)"
+              className="inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 border border-emerald-400/40 hover:bg-emerald-500/20 transition">
+              <FileSpreadsheet className="w-4 h-4" /> Excel
+            </button>
+            <button type="button" onClick={() => descargarReporte('pdf')}
+              title="PDF ejecutivo con los filtros actuales (membrete, KPIs, tabla y pie)"
+              className="inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold text-rose-700 dark:text-rose-300 bg-rose-500/10 border border-rose-400/40 hover:bg-rose-500/20 transition">
+              <FileText className="w-4 h-4" /> PDF
+            </button>
+
             <button type="button" onClick={exportar}
               className="inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold text-white bg-gradient-to-r from-emerald-500 to-teal-600 shadow-md shadow-emerald-500/25 hover:brightness-110 hover:shadow-lg transition">
-              <Download className="w-4 h-4" /> Exportar
+              <Download className="w-4 h-4" /> Exportar CSV
             </button>
           </div>
         </div>

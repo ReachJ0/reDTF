@@ -1,35 +1,29 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.database import engine
-from app.api import analitica, usuarios, operadores, tarifas, clientes, pedidos, facturas, auditoria, finanzas
-from app.api.usuarios import router as usuarios_router
-from app.api import ordenes
+from app.api import ordenes, clientes, reportes, tarifas, usuarios, analitica, auditoria, reportes
 
 app = FastAPI(
     title="API ReDTF",
-    description="Backend para el sistema de gestión ReDTF",
-    version="1.0.0"
+    description="Backend del sistema de gestión ReDTF · borrado lógico + auditoría + reglas de negocio",
+    version="2.1.0"
 )
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], 
+    allow_origins=["http://localhost:5173"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Rutas de la api
-app.include_router(usuarios.router, prefix="/api/usuarios", tags=["Usuarios"])
-app.include_router(operadores.router, prefix="/api/operadores", tags=["Operadores"])
-app.include_router(clientes.router, prefix="/api/clientes", tags=["Clientes"])
-app.include_router(pedidos.router, prefix="/api/pedidos", tags=["Pedidos"])
-app.include_router(tarifas.router, prefix="/api/tarifas", tags=["Tarifas"])
-app.include_router(facturas.router, prefix="/api/facturas", tags=["Facturas"])
-app.include_router(finanzas.router, prefix="/api/finanzas", tags=["Finanzas"])
-app.include_router(auditoria.router, prefix="/api/auditoria", tags=["Auditoria"])
-app.include_router(analitica.router, prefix="/api/analitica", tags=["Analitica"])
-app.include_router(ordenes.router, prefix="/api/ordenes", tags=["Órdenes"])
+app.include_router(usuarios.router,  prefix="/api/usuarios",  tags=["Usuarios"])
+app.include_router(clientes.router,  prefix="/api/clientes",  tags=["Clientes"])
+app.include_router(tarifas.router,   prefix="/api/tarifas",   tags=["Tarifas"])
+app.include_router(ordenes.router,   prefix="/api/ordenes",   tags=["Órdenes"])
+app.include_router(auditoria.router, prefix="/api/auditoria", tags=["Auditoría"])
+app.include_router(analitica.router, prefix="/api/analitica", tags=["Analítica"])
+app.include_router(reportes.router,  prefix="/api/reportes",  tags=["Reportes"])
 
 @app.on_event("startup")
 def startup_event():
@@ -41,4 +35,7 @@ def startup_event():
 
 @app.get("/")
 def read_root():
-    return {"mensaje": "API ReDTF funcionando correctamente 🚀"}
+    return {
+        "mensaje": "API ReDTF v2.1 🚀",
+        "modulos": ["usuarios", "clientes", "tarifas", "ordenes", "auditoria", "analitica"],
+    }

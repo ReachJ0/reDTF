@@ -24,3 +24,13 @@ def crear_token_acceso(data: dict):
     # Generar el token usando los datos, la clave secreta y el algoritmo
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
+
+def rol_de(usuario) -> str:
+    """Resuelve el rol del usuario: columna `rol` (migración) o fallback por id_rol."""
+    r = getattr(usuario, "rol", None)
+    if isinstance(r, str) and r.strip():
+        return r.strip().lower()
+    id_rol = getattr(usuario, "id_rol", None)
+    if id_rol == 1:
+        return "admin"
+    return "operador"

@@ -1,60 +1,41 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Users, FileText, Settings, ChevronLeft, Sun, Moon, Sparkles } from 'lucide-react';
-import { cx, useTema } from '../design/sistema';
+import {
+  LayoutDashboard, Users, FileText, Settings, ScrollText, UserCog,
+  ChevronLeft, Sun, Moon, Sparkles, Volume2, VolumeX
+} from 'lucide-react';
+import { cx } from '../design/sistema';
+import { useAjustes, setAjustes, aplicarTemaDocumento, temaOscuroActual } from '../design/ajustes';
+import { useAuth } from '../context/AuthContext';
 
 const NAV = [
   { a: '/', icon: LayoutDashboard, label: 'Dashboard', grad: 'from-violet-500 to-fuchsia-600' },
   { a: '/clientes', icon: Users, label: 'Clientes', grad: 'from-sky-500 to-blue-600' },
   { a: '/ordenes', icon: FileText, label: 'Órdenes', grad: 'from-fuchsia-500 to-violet-600' },
-  { a: '/configuracion', icon: Settings, label: 'Configuración', grad: 'from-amber-400 to-orange-500' },
+  { a: '/auditoria', icon: ScrollText, label: 'Auditoría', grad: 'from-emerald-400 to-teal-600', rol: 'admin' },
+  { a: '/equipo', icon: UserCog, label: 'Equipo', grad: 'from-sky-400 to-indigo-600', rol: 'admin' },
+  { a: '/configuracion', icon: Settings, label: 'Configuración', grad: 'from-amber-400 to-orange-500', rol: 'admin' },
 ];
-
-/* El shell original reservaba espacio para un sidebar fijo (ml-64 / pl-64 / spacer w-64).
-   Ahora el sidebar vive en el flujo, así que reconciliamos ese reserva para que
-   el panel y el contenido queden pegados, sin columna vacía entre ambos. */
-function reconciliarLayout(asideRef) {
-  const nodos = document.querySelectorAll('#root div, #root main, #root section, #root header, #root footer');
-  nodos.forEach((el) => {
-    if (el.dataset.rdtfLayout || el.closest('[data-rdtf-sidebar]')) return;
-    const cs = getComputedStyle(el);
-    const ml = parseFloat(cs.marginLeft) || 0;
-    const pl = parseFloat(cs.paddingLeft) || 0;
-    const w = el.getBoundingClientRect().width;
-    let tocado = false;
-    if (ml >= 200 && ml <= 320) { el.style.marginLeft = '0px'; tocado = true; }
-    if (pl >= 200 && pl <= 320 && !el.contains(asideRef.current)) { el.style.paddingLeft = '0px'; tocado = true; }
-    if (!tocado && el.children.length === 0 && !el.textContent.trim() && w >= 200 && w <= 320 && cs.position !== 'fixed') {
-      el.style.width = 'var(--rdtf-sidebar, 256px)';
-      el.style.flexShrink = '0';
-      tocado = true;
-    }
-    if (tocado) el.dataset.rdtfLayout = '1';
-  });
-}
 
 export default function Sidebar() {
   const [colapsado, setColapsado] = useState(false);
-  const [oscuro, setOscuro] = useTema();
+  const a = useAjustes();
+  const { rol } = useAuth();
   const { pathname } = useLocation();
   const navigate = useNavigate();
-  const asideRef = useRef(null);
-  const activo = (a) => (a === '/' ? pathname === '/' || pathname === '/dashboard' : pathname.startsWith(a));
+
+  const oscuro = temaOscuroActual(a.tema);
+  const toggleTema = () => setAjustes({ tema: oscuro ? 'claro' : 'oscuro' });
 
   useEffect(() => {
-    document.documentElement.style.setProperty('--rdtf-sidebar', colapsado ? '76px' : '256px');
-  }, [colapsado]);
+    aplicarTemaDocumento(a.tema);
+  }, [a.tema]);
 
-  useEffect(() => {
-    reconciliarLayout(asideRef);
-    const t1 = setTimeout(() => reconciliarLayout(asideRef), 250);
-    const t2 = setTimeout(() => reconciliarLayout(asideRef), 900);
-    return () => { clearTimeout(t1); clearTimeout(t2); };
-  }, []);
+  const activo = (r) => (r === '/' ? pathname === '/' || pathname === '/dashboard' : pathname.startsWith(r));
+  const items = NAV.filter((n) => !n.rol || n.rol === rol);
 
   return (
     <aside
-      ref={asideRef}
       data-rdtf-sidebar="1"
       className={cx(
         'relative z-20 flex flex-col shrink-0 h-screen sticky top-0 self-start',
@@ -84,7 +65,7 @@ export default function Sidebar() {
       {!colapsado && <p className="px-5 pb-2 text-[10px] font-bold uppercase tracking-[.22em] text-slate-400 dark:text-slate-500">Gestión</p>}
 
       <nav className="flex-1 px-3 space-y-1.5 overflow-y-auto rdtf-scroll">
-        {NAV.map((n) => {
+        {items.map((n) => {
           const on = activo(n.a);
           return (
             <button key={n.a} type="button" onClick={() => navigate(n.a)} title={n.label}
@@ -101,12 +82,25 @@ export default function Sidebar() {
       </nav>
 
       <div className={cx('p-3 border-t border-slate-200/70 dark:border-gray-700/70 space-y-2', colapsado && 'px-2')}>
-        <button type="button" onClick={() => setOscuro((o) => !o)}
-          className={cx('w-full flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-slate-600 dark:text-slate-300 bg-slate-100/80 dark:bg-gray-800/80 border border-slate-200/70 dark:border-gray-700 hover:border-violet-400 transition', colapsado && 'justify-center px-0')}>
-          {oscuro ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-violet-500" />}
-          {!colapsado && <span>{oscuro ? 'Modo Claro' : 'Modo Oscuro'}</span>}
-        </button>
-        {!colapsado && <p className="text-center text-[10px] font-bold tracking-widest text-slate-400 dark:text-slate-600">v0.4.0 · ReDTF</p>}
+        <div className={cx('flex gap-2', colapsado && 'flex-col')}>
+          <button type="button" onClick={toggleTema} aria-label={oscuro ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
+            title={oscuro ? 'Modo claro' : 'Modo oscuro'}
+            className={cx('flex-1 flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-slate-600 dark:text-slate-300 bg-slate-100/80 dark:bg-gray-800/80 border border-slate-200/70 dark:border-gray-700 hover:border-violet-400 transition', colapsado && 'justify-center px-0')}>
+            {oscuro ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-violet-500" />}
+            {!colapsado && <span>{oscuro ? 'Modo Claro' : 'Modo Oscuro'}</span>}
+          </button>
+          <button type="button" onClick={() => setAjustes({ sonido: !a.sonido })} aria-label={a.sonido ? 'Silenciar sonidos' : 'Activar sonidos'}
+            title={a.sonido ? 'Sonido activado' : 'Sonido silenciado'}
+            className={cx('flex items-center justify-center rounded-xl px-3 py-2.5 border transition',
+              a.sonido ? 'text-emerald-600 dark:text-emerald-300 bg-emerald-500/10 border-emerald-400/40' : 'text-slate-400 bg-slate-100/80 dark:bg-gray-800/80 border-slate-200/70 dark:border-gray-700')}>
+            {a.sonido ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
+          </button>
+        </div>
+        {!colapsado && (
+          <p className="text-center text-[10px] font-bold tracking-widest text-slate-400 dark:text-slate-600">
+            v0.4.0 · ReDTF · rol: <span className="text-fuchsia-500 dark:text-fuchsia-400 uppercase">{rol}</span>
+          </p>
+        )}
       </div>
 
       {colapsado && (

@@ -1,59 +1,72 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import api from '../api/client';
-import { ShoppingCart, X, Calculator, User, Tag, Ruler, Hash, CheckCircle } from 'lucide-react';
-import { cx, Btn, inputCls, labelCls, money, useToasts, Toasts } from '../design/sistema';
+import { ShoppingCart, X, Calculator, User, Tag, Ruler, Hash, CheckCircle, Clock } from 'lucide-react';
+import { cx, Btn, inputCls, labelCls, money, fFecha, useToasts, Toasts } from '../design/sistema';
+import { cotizar, useAjustes } from '../design/ajustes';
+import { reglas, useValidacion, Campo, ResumenErrores, bordeCampo } from '../design/validacion';
+
+const ESQUEMA = {
+  id_cli: [reglas.seleccion('Selecciona un cliente')],
+  id_tarif: [reglas.seleccion('Selecciona el tipo de impresión')],
+  larcm_order: [reglas.numeroPositivo(10000)],
+  ancm_order: [reglas.numeroPositivo(10000)],
+  can_order: [reglas.enteroPositivo(100000)],
+};
 
 export default function FormularioPedido({ onPedidoCreado, onClose }) {
   const qc = useQueryClient();
+  const ajustes = useAjustes();
   const { toasts, push, cerrar } = useToasts();
-  const [form, setForm] = useState({ id_cli: '', id_tarif: '', larcm_order: '', ancm_order: '', can_order: 1, id_estado: 1 });
+  const { valores, cambiar, tocar, mostrarError, validarTodo, reset } = useValidacion(
+    { id_cli: '', id_tarif: '', larcm_order: '', ancm_order: '', can_order: 1, id_estado: 1 },
+    ESQUEMA
+  );
   const [enviando, setEnviando] = useState(false);
+  const [erroresEnvio, setErroresEnvio] = useState(null);
 
   const { data: clientes } = useQuery({ queryKey: ['clientes'], queryFn: async () => (await api.get('/clientes/')).data });
   const { data: tarifas } = useQuery({ queryKey: ['tarifas'], queryFn: async () => (await api.get('/tarifas/')).data });
   const { data: estados } = useQuery({ queryKey: ['estadosProd'], queryFn: async () => (await api.get('/ordenes/estados-produccion/')).data });
 
-  useEffect(() => {
-    if (estados?.length && !estados.some((e) => e.id_estado === Number(form.id_estado))) {
-      setForm((f) => ({ ...f, id_estado: estados[0].id_estado }));
-    }
-  }, [estados]);
-
-  const tarifa = useMemo(() => (tarifas ?? []).find((t) => t.id_tarif === parseInt(form.id_tarif)), [tarifas, form.id_tarif]);
-  const calc = useMemo(() => {
-    const l = parseFloat(form.larcm_order), a = parseFloat(form.ancm_order), c = parseInt(form.can_order);
-    if (!(l > 0 && a > 0 && c > 0)) return null;
-    const m2 = (l * a * c) / 10000;
-    return { m2, subtotal: tarifa ? m2 * Number(tarifa.pre_tarif) : 0 };
-  }, [form.larcm_order, form.ancm_order, form.can_order, tarifa]);
-
-  const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
+  const tarifa = useMemo(() => (tarifas ?? []).find((t) => t.id_tarif === parseInt(valores.id_tarif)), [tarifas, valores.id_tarif]);
+  const m2 = (Number(valores.larcm_order) || 0) * (Number(valores.ancm_order) || 0) * (Number(valores.can_order) || 0) / 10000;
+  const calc = useMemo(() => cotizar(m2, tarifa ? Number(tarifa.pre_tarif) : 0, ajustes), [m2, tarifa, ajustes]);
+  const calcValido = m2 > 0 && !!tarifa;
 
   const enviar = async (e) => {
     e.preventDefault();
-    if (!form.id_cli || !form.id_tarif) return push('error', 'Selecciona cliente y tipo de impresión.');
-    if (!calc) return push('error', 'Las dimensiones y cantidad deben ser mayores a cero.');
+    setErroresEnvio(null);
+    const { ok, errs } = validarTodo();
+    if (!ok) { setErroresEnvio(errs); return; }
     setEnviando(true);
     try {
-      await api.post('/pedidos/', {
-        id_cli: parseInt(form.id_cli),
-        id_tarif: parseInt(form.id_tarif),
-        larcm_order: parseFloat(form.larcm_order),
-        ancm_order: parseFloat(form.ancm_order),
-        can_order: parseInt(form.can_order),
-        id_estado: parseInt(form.id_estado),
+      await api.post('/ordenes/', {
+        id_cli: parseInt(valores.id_cli),
+        id_tarif: parseInt(valores.id_tarif),
+        larcm_order: parseFloat(valores.larcm_order),
+        ancm_order: parseFloat(valores.ancm_order),
+        can_order: parseInt(valores.can_order),
+        id_estado: parseInt(valores.id_estado),
       });
       qc.invalidateQueries(['ordenes']);
       qc.invalidateQueries(['dashboardStats']);
-      push('success', `Orden registrada por ${money(calc.subtotal)} · factura generada automáticamente.`);
+      push('success', `Orden registrada por ${money(calc.totalRed)} · factura generada automáticamente.`);
+      reset();
       onPedidoCreado?.();
-      setTimeout(onClose, 800);
+      setTimeout(onClose, 700);
     } catch (err) {
-      push('error', `No se pudo registrar: ${err.response?.data?.detail || err.message}`);
-    } finally { setEnviando(false); }
+      const detalle = err.response?.data?.detail || err.message;
+      setErroresEnvio({ servidor: detalle });
+      push('error', `No se pudo registrar: ${detalle}`);
+    } finally {
+      setEnviando(false);
+    }
   };
+
+  const numCls = (campo, extra = '') =>
+    cx(inputCls, 'w-full rdtf-num', extra, bordeCampo(mostrarError(campo), !mostrarError(campo) && String(valores[campo]) !== '' && Number(valores[campo]) > 0));
 
   return createPortal(
     <div className="fixed inset-0 z-[9995] flex items-center justify-center p-4">
@@ -70,64 +83,91 @@ export default function FormularioPedido({ onPedidoCreado, onClose }) {
           <button type="button" onClick={onClose} aria-label="Cerrar" className="p-2 rounded-lg hover:bg-white/15 transition"><X className="w-5 h-5" /></button>
         </div>
 
-        <form onSubmit={enviar} className="p-5 space-y-4">
-          <div>
-            <label className={labelCls}><User className="inline w-3.5 h-3.5 mr-1" />Cliente *</label>
-            <select value={form.id_cli} onChange={set('id_cli')} required className={cx(inputCls, 'w-full')}>
-              <option value="">Seleccionar cliente…</option>
-              {(clientes ?? []).map((c) => <option key={c.id_cli} value={c.id_cli}>{c.nombre_user}{c.telf_user ? ` · ${c.telf_user}` : ''}</option>)}
-            </select>
-          </div>
+        <form onSubmit={enviar} noValidate className="p-5 space-y-4">
+          {erroresEnvio && <ResumenErrores errores={erroresEnvio} />}
+
+          <Campo label="Cliente" obligatorio error={mostrarError('id_cli')}>
+            <div className="relative">
+              <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <select value={valores.id_cli} onChange={cambiar('id_cli')} onBlur={tocar('id_cli')}
+                aria-invalid={!!mostrarError('id_cli')}
+                className={cx(inputCls, 'w-full pl-9', bordeCampo(mostrarError('id_cli'), !!valores.id_cli))}>
+                <option value="">Seleccionar cliente…</option>
+                {(clientes ?? []).map((c) => <option key={c.id_cli} value={c.id_cli}>{c.nombre_user}{c.telf_user ? ` · ${c.telf_user}` : ''}</option>)}
+              </select>
+            </div>
+          </Campo>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className={labelCls}><Tag className="inline w-3.5 h-3.5 mr-1" />Tipo de impresión *</label>
-              <select value={form.id_tarif} onChange={set('id_tarif')} required className={cx(inputCls, 'w-full')}>
-                <option value="">Seleccionar tarifa…</option>
-                {(tarifas ?? []).map((t) => <option key={t.id_tarif} value={t.id_tarif}>{t.tam_tarif} · {money(t.pre_tarif)}/m²</option>)}
-              </select>
-            </div>
-            <div>
-              <label className={labelCls}>Estado inicial de producción</label>
-              <select value={form.id_estado} onChange={set('id_estado')} className={cx(inputCls, 'w-full')}>
+            <Campo label="Tipo de impresión" obligatorio error={mostrarError('id_tarif')}>
+              <div className="relative">
+                <Tag className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <select value={valores.id_tarif} onChange={cambiar('id_tarif')} onBlur={tocar('id_tarif')}
+                  aria-invalid={!!mostrarError('id_tarif')}
+                  className={cx(inputCls, 'w-full pl-9', bordeCampo(mostrarError('id_tarif'), !!valores.id_tarif))}>
+                  <option value="">Seleccionar tarifa…</option>
+                  {(tarifas ?? []).map((t) => <option key={t.id_tarif} value={t.id_tarif}>{t.tam_tarif} · {money(t.pre_tarif)}/m²</option>)}
+                </select>
+              </div>
+            </Campo>
+            <Campo label="Estado inicial">
+              <select value={valores.id_estado} onChange={cambiar('id_estado')} className={cx(inputCls, 'w-full')}>
                 {(estados ?? []).map((e) => <option key={e.id_estado} value={e.id_estado}>{e.nom_estado}</option>)}
               </select>
-            </div>
+            </Campo>
           </div>
 
           <div className="grid grid-cols-3 gap-3">
-            <div>
-              <label className={labelCls}><Ruler className="inline w-3.5 h-3.5 mr-1" />Largo (cm)</label>
-              <input type="number" min="0.1" step="0.1" value={form.larcm_order} onChange={set('larcm_order')} required placeholder="30" className={cx(inputCls, 'w-full rdtf-num')} />
-            </div>
-            <div>
-              <label className={labelCls}>Ancho (cm)</label>
-              <input type="number" min="0.1" step="0.1" value={form.ancm_order} onChange={set('ancm_order')} required placeholder="40" className={cx(inputCls, 'w-full rdtf-num')} />
-            </div>
-            <div>
-              <label className={labelCls}><Hash className="inline w-3.5 h-3.5 mr-1" />Cantidad</label>
-              <input type="number" min="1" step="1" value={form.can_order} onChange={set('can_order')} required className={cx(inputCls, 'w-full rdtf-num')} />
-            </div>
+            <Campo label="Largo (cm)" obligatorio error={mostrarError('larcm_order')}>
+              <div className="relative">
+                <Ruler className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <input type="number" min="0.1" step="0.1" value={valores.larcm_order}
+                  onChange={cambiar('larcm_order')} onBlur={tocar('larcm_order')}
+                  aria-invalid={!!mostrarError('larcm_order')} placeholder="30" className={numCls('larcm_order', 'pl-9')} />
+              </div>
+            </Campo>
+            <Campo label="Ancho (cm)" obligatorio error={mostrarError('ancm_order')}>
+              <input type="number" min="0.1" step="0.1" value={valores.ancm_order}
+                onChange={cambiar('ancm_order')} onBlur={tocar('ancm_order')}
+                aria-invalid={!!mostrarError('ancm_order')} placeholder="40" className={numCls('ancm_order')} />
+            </Campo>
+            <Campo label="Cantidad" obligatorio error={mostrarError('can_order')}>
+              <div className="relative">
+                <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <input type="number" min="1" step="1" value={valores.can_order}
+                  onChange={cambiar('can_order')} onBlur={tocar('can_order')}
+                  aria-invalid={!!mostrarError('can_order')} className={numCls('can_order', 'pl-9')} />
+              </div>
+            </Campo>
           </div>
 
-          <div className={cx('rounded-xl border p-4 transition-all', calc ? 'border-fuchsia-400/40 bg-gradient-to-r from-violet-500/10 via-fuchsia-500/10 to-sky-500/10' : 'border-slate-200 dark:border-gray-700 bg-slate-50/60 dark:bg-gray-800/60')}>
+          <div className={cx('rounded-xl border p-4 transition-all', calcValido
+            ? 'border-fuchsia-400/40 bg-gradient-to-r from-violet-500/10 via-fuchsia-500/10 to-sky-500/10'
+            : 'border-slate-200 dark:border-gray-700 bg-slate-50/60 dark:bg-gray-800/60')}>
             <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-widest text-fuchsia-600 dark:text-fuchsia-300 mb-3">
-              <Calculator className="w-4 h-4" /> Cálculo automático
+              <Calculator className="w-4 h-4" /> Cálculo automático en vivo
             </p>
-            {calc ? (
-              <div className="grid grid-cols-3 gap-3 text-center">
-                <div><p className="rdtf-num text-xl font-extrabold text-sky-600 dark:text-sky-300">{calc.m2.toFixed(4)}</p><p className="text-[11px] text-slate-400">m² totales</p></div>
-                <div><p className="rdtf-num text-xl font-extrabold text-violet-600 dark:text-violet-300">{tarifa ? money(tarifa.pre_tarif) : '—'}</p><p className="text-[11px] text-slate-400">precio / m²</p></div>
-                <div><p className="rdtf-num text-xl font-extrabold text-emerald-600 dark:text-emerald-300">{money(calc.subtotal)}</p><p className="text-[11px] text-slate-400">subtotal</p></div>
+            {calcValido ? (
+              <div className="space-y-2 text-sm">
+                <div className="grid grid-cols-3 gap-3 text-center">
+                  <div><p className="rdtf-num text-lg font-extrabold text-sky-600 dark:text-sky-300">{calc.m2fact.toFixed(4)}</p><p className="text-[11px] text-slate-400">m² facturables</p></div>
+                  <div><p className="rdtf-num text-lg font-extrabold text-violet-600 dark:text-violet-300">{money(tarifa.pre_tarif)}</p><p className="text-[11px] text-slate-400">precio / m²</p></div>
+                  <div><p className="rdtf-num text-lg font-extrabold text-emerald-600 dark:text-emerald-300">{money(calc.totalRed)}</p><p className="text-[11px] text-slate-400">total con IVA</p></div>
+                </div>
+                <ul className="space-y-0.5 text-[11px] text-slate-500 dark:text-slate-400">
+                  <li>Subtotal: {money(calc.bruto)}{calc.descuento > 0 && <> · Descuento {calc.tier.d}% ({calc.tier.label}): −{money(calc.descuento)}</>}</li>
+                  <li>IVA {ajustes.ivaPct}%: {money(calc.iva)}{calc.aplicaMinimo && <> · Aplica mínimo {money(ajustes.minimoOrden)}</>}</li>
+                  <li className="flex items-center gap-1"><Clock className="w-3 h-3" /> Entrega estimada: {fFecha(calc.entrega)} ({calc.horas.toFixed(1)} h de impresión)</li>
+                </ul>
               </div>
             ) : (
-              <p className="text-sm text-slate-400">Completa tarifa, dimensiones y cantidad para ver el subtotal en vivo.</p>
+              <p className="text-sm text-slate-400">Completa tarifa, dimensiones y cantidad para ver el desglose en vivo.</p>
             )}
           </div>
 
           <div className="flex gap-2.5 pt-1">
             <Btn variant="ghost" className="flex-1" onClick={onClose}>Cancelar</Btn>
-            <Btn type="submit" disabled={enviando || !calc} className="flex-1">
+            <Btn type="submit" disabled={enviando} className="flex-1">
               {enviando ? <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <CheckCircle className="w-4 h-4" />}
               Registrar orden
             </Btn>

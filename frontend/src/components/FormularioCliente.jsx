@@ -2,31 +2,44 @@ import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import api from '../api/client';
-import { Users, X, Save, Phone, User, CheckCircle, XCircle } from 'lucide-react';
-import { cx, Btn, inputCls, labelCls, useToasts, Toasts } from '../design/sistema';
+import { Users, X, Save, Phone, User } from 'lucide-react';
+import { cx, Btn, inputCls, useToasts, Toasts } from '../design/sistema';
+import { reglas, useValidacion, Campo, ResumenErrores, bordeCampo } from '../design/validacion';
+
+const ESQUEMA = {
+  nombre_user: [reglas.requerido('El nombre es obligatorio'), reglas.nombre],
+  telf_user: [reglas.telefono],
+};
 
 export default function FormularioCliente({ cliente = null, onClose }) {
   const qc = useQueryClient();
   const { toasts, push, cerrar } = useToasts();
-  const [form, setForm] = useState({ nombre_user: cliente?.nombre_user || '', telf_user: cliente?.telf_user || '' });
+  const { valores, cambiar, tocar, mostrarError, validarTodo, reset } = useValidacion(
+    { nombre_user: cliente?.nombre_user || '', telf_user: cliente?.telf_user || '' },
+    ESQUEMA
+  );
   const [enviando, setEnviando] = useState(false);
+  const [erroresEnvio, setErroresEnvio] = useState(null);
   const editando = !!cliente;
-
-  const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
 
   const guardar = async (e) => {
     e.preventDefault();
-    if (!form.nombre_user.trim()) return push('error', 'El nombre del cliente es obligatorio.');
+    setErroresEnvio(null);
+    const { ok, errs } = validarTodo();
+    if (!ok) { setErroresEnvio(errs); return; }
     setEnviando(true);
     try {
-      const payload = { nombre_user: form.nombre_user.trim(), telf_user: form.telf_user.trim() };
+      const payload = { nombre_user: valores.nombre_user.trim(), telf_user: valores.telf_user.trim() || null };
       if (editando) await api.put(`/clientes/${cliente.id_cli}`, payload);
       else await api.post('/clientes/', payload);
       qc.invalidateQueries(['clientes']);
       push('success', editando ? `Cliente "${payload.nombre_user}" actualizado.` : `Cliente "${payload.nombre_user}" registrado.`);
-      setTimeout(onClose, 700);
+      reset();
+      setTimeout(onClose, 600);
     } catch (err) {
-      push('error', `No se pudo guardar: ${err.response?.data?.detail || err.message}`);
+      const detalle = err.response?.data?.detail || err.message;
+      setErroresEnvio({ servidor: detalle });
+      push('error', `No se pudo guardar: ${detalle}`);
     } finally {
       setEnviando(false);
     }
@@ -47,28 +60,39 @@ export default function FormularioCliente({ cliente = null, onClose }) {
           <button type="button" onClick={onClose} aria-label="Cerrar" className="p-2 rounded-lg hover:bg-white/15 transition"><X className="w-5 h-5" /></button>
         </div>
 
-        <form onSubmit={guardar} className="p-5 space-y-4">
-          <div>
-            <label className={labelCls} htmlFor="cli-nombre">Nombre / Razón social *</label>
-            <div className="relative">
-              <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-              <input id="cli-nombre" value={form.nombre_user} onChange={set('nombre_user')} required autoFocus
-                placeholder="Ej: Alfredo Pérez" className={cx(inputCls, 'w-full pl-9')} />
-            </div>
-          </div>
-          <div>
-            <label className={labelCls} htmlFor="cli-telf">Teléfono</label>
-            <div className="relative">
-              <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-              <input id="cli-telf" value={form.telf_user} onChange={set('telf_user')}
-                placeholder="0414 123 4567" className={cx(inputCls, 'w-full pl-9')} />
-            </div>
-          </div>
+        <form onSubmit={guardar} noValidate className="p-5 space-y-4">
+          {erroresEnvio && <ResumenErrores errores={erroresEnvio} />}
 
-          <div className="rounded-xl border border-sky-400/30 bg-gradient-to-r from-sky-500/10 to-violet-500/10 p-3.5 text-xs text-slate-500 dark:text-slate-400">
-            <p className="flex items-center gap-1.5 font-bold text-sky-600 dark:text-sky-300 mb-1"><CheckCircle className="w-3.5 h-3.5" /> Vinculación automática</p>
-            Al crear órdenes, este cliente quedará disponible en el selector y su historial de impresión se acumulará en su ficha.
-          </div>
+          <Campo label="Nombre / Razón social" obligatorio error={mostrarError('nombre_user')}
+            valido={!mostrarError('nombre_user') && valores.nombre_user.trim().length >= 3}>
+            <div className="relative">
+              <User className={cx('absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4', mostrarError('nombre_user') ? 'text-rose-400' : 'text-slate-400')} />
+              <input
+                value={valores.nombre_user}
+                onChange={cambiar('nombre_user')}
+                onBlur={tocar('nombre_user')}
+                aria-invalid={!!mostrarError('nombre_user')}
+                placeholder="Ej: Alfredo Pérez"
+                className={cx(inputCls, 'w-full pl-9', bordeCampo(mostrarError('nombre_user'), !mostrarError('nombre_user') && valores.nombre_user.trim().length >= 3))}
+              />
+            </div>
+          </Campo>
+
+          <Campo label="Teléfono" error={mostrarError('telf_user')}
+            valido={!mostrarError('telf_user') && !!valores.telf_user}
+            ayuda="Opcional · 7–15 dígitos, admite +, -, ( ) y espacios">
+            <div className="relative">
+              <Phone className={cx('absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4', mostrarError('telf_user') ? 'text-rose-400' : 'text-slate-400')} />
+              <input
+                value={valores.telf_user}
+                onChange={cambiar('telf_user')}
+                onBlur={tocar('telf_user')}
+                aria-invalid={!!mostrarError('telf_user')}
+                placeholder="0414 123 4567"
+                className={cx(inputCls, 'w-full pl-9', bordeCampo(mostrarError('telf_user'), !mostrarError('telf_user') && !!valores.telf_user))}
+              />
+            </div>
+          </Campo>
 
           <div className="flex gap-2.5 pt-1">
             <Btn variant="ghost" className="flex-1" onClick={onClose}>Cancelar</Btn>

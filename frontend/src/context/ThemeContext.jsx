@@ -1,37 +1,28 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useEffect } from 'react';
+import { useAjustes, setAjustes, aplicarTemaDocumento, temaOscuroActual } from '../design/ajustes';
 
-const ThemeContext = createContext(undefined);
+const ThemeContext = createContext(null);
 
+/**
+ * Fuente única de verdad del tema: el store de ajustes.
+ * Este provider solo observa y delega; nunca escribe la clase por su cuenta,
+ * de modo que ningún effect compitiendo pueda revertir el toggle.
+ */
 export function ThemeProvider({ children }) {
-  const [tema, setTema] = useState(() => {
-    // Cargar tema guardado o usar 'claro' por defecto
-    const guardado = localStorage.getItem('tema');
-    return guardado || 'claro';
-  });
+  const a = useAjustes();
 
   useEffect(() => {
-    const root = window.document.documentElement;
-    if (tema === 'oscuro') {
-      root.classList.add('dark');
-    } else {
-      root.classList.remove('dark');
-    }
-    localStorage.setItem('tema', tema);
-  }, [tema]);
+    aplicarTemaDocumento(a.tema);
+  }, [a.tema]);
 
-  const alternarTema = () => {
-    setTema((prev) => (prev === 'claro' ? 'oscuro' : 'claro'));
+  const value = {
+    oscuro: temaOscuroActual(a.tema),
+    tema: a.tema,
+    toggle: () => setAjustes({ tema: temaOscuroActual(a.tema) ? 'claro' : 'oscuro' }),
+    setTema: (t) => setAjustes({ tema: t }),
   };
 
-  return (
-    <ThemeContext.Provider value={{ tema, alternarTema }}>
-      {children}
-    </ThemeContext.Provider>
-  );
+  return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
 }
 
-export const useTema = () => {
-  const context = useContext(ThemeContext);
-  if (!context) throw new Error('useTema debe usarse dentro de ThemeProvider');
-  return context;
-};
+export const useTheme = () => useContext(ThemeContext);
