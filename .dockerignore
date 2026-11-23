@@ -1,0 +1,13 @@
+venv
+node_modules
+.git
+__pycache__
+.vscode
+*.pyc
+*.pyo
+DTF_systema.json
+reachD.dbm
+*.backup
+frontend/node_modules
+frontend/dist
+docs
